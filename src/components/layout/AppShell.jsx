@@ -49,7 +49,7 @@ export default function AppShell() {
           ? location.pathname.startsWith('/app/cases') && location.pathname !== '/app/cases/new'
           : location.pathname === path
     return {
-      backgroundColor: active ? 'color-mix(in srgb, var(--main-color) 15%, transparent)' : 'transparent',
+      backgroundColor: active ? 'color-mix(in srgb, var(--main-color) 15%, var(--bg-color))' : 'transparent',
       color: active ? 'var(--main-color)' : 'color-mix(in srgb, var(--text-color) 60%, transparent)',
     }
   }

@@ -9,10 +9,10 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <a href="/" className="flex items-center gap-2">
           <svg className="h-8 w-8" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="6" fill="#ea580c"/>
-            <path d="M8 10h16v2H8zm0 5h16v2H8zm0 5h10v2H8z" fill="#fff" opacity="0.9"/>
-            <circle cx="24" cy="22" r="4" fill="#fff"/>
-            <path d="M23 22h2m-1-1v2" stroke="#ea580c" strokeWidth="1.5" strokeLinecap="round"/>
+            <rect width="32" height="32" rx="6" fill="var(--main-color)"/>
+            <path d="M8 10h16v2H8zm0 5h16v2H8zm0 5h10v2H8z" fill="var(--bg-color)" opacity="0.9"/>
+            <circle cx="24" cy="22" r="4" fill="var(--bg-color)"/>
+            <path d="M23 22h2m-1-1v2" stroke="var(--main-color)" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
           <span className="text-xl font-bold">
             PIC<span className="gradient-text">Tracker</span>
