@@ -49,18 +49,26 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
       .single()
 
     if (orgError) {
+      console.error('[signup] org insert error:', orgError)
       setError(orgError.message)
       setLoading(false)
       return
     }
+    console.log('[signup] org created:', org.id, 'user_id:', userIdRef.current)
 
-    const { error: memberError } = await supabase
+    const memberPayload = {
+      organization_id: org.id,
+      user_id: userIdRef.current,
+      role: 'owner',
+    }
+    console.log('[signup] inserting member:', JSON.stringify(memberPayload))
+
+    const { data: memberData, error: memberError } = await supabase
       .from('members')
-      .insert({
-        organization_id: org.id,
-        user_id: userIdRef.current,
-        role: 'owner',
-      })
+      .insert(memberPayload)
+      .select()
+
+    console.log('[signup] member insert response:', { memberData, memberError })
 
     setLoading(false)
     if (memberError) {
@@ -69,9 +77,11 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     }
 
     setOrgId(org.id)
-    await supabase.auth.updateUser({
+    console.log('[signup] setOrgId done')
+    const updateRes = await supabase.auth.updateUser({
       data: { default_organization_id: org.id },
     })
+    console.log('[signup] updateUser done:', updateRes.error)
 
     onClose()
   }
