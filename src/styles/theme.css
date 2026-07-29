@@ -1,0 +1,15 @@
+:root {
+  --bg-color: #080808;
+  --second-bg-color: #101010;
+  --text-color: white;
+  --main-color: #ea580c;
+  --span-color: linear-gradient(270deg, #df8908 10%, #ff1d15 100%);
+}
+
+[data-theme="light"] {
+  --bg-color: #ffffff;
+  --second-bg-color: #f0f0f0;
+  --text-color: #000000;
+  --main-color: #4caf50;
+  --span-color: linear-gradient(270deg, #4caf50 10%, #388e3c 100%);
+}

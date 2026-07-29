@@ -1,0 +1,95 @@
+@import './styles/theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-gray-700;
+  }
+
+  [data-theme="light"] * {
+    @apply border-gray-200;
+  }
+
+  body {
+    @apply bg-bg text-text antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  ::selection {
+    background-color: var(--main-color);
+    color: white;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    background: var(--span-color);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .gradient-bg {
+    background: var(--span-color);
+  }
+
+  .card {
+    @apply rounded-xl p-6;
+    background-color: var(--second-bg-color);
+    border: 1px solid transparent;
+    border-color: color-mix(in srgb, var(--text-color) 10%, transparent);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  [data-theme="light"] .card:hover {
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg px-6 py-3 font-semibold text-white transition-all duration-200;
+    background: var(--span-color);
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-lg px-6 py-3 font-semibold transition-all duration-200;
+    color: var(--text-color);
+    border: 1px solid color-mix(in srgb, var(--text-color) 20%, transparent);
+  }
+
+  .btn-ghost:hover {
+    background-color: color-mix(in srgb, var(--text-color) 5%, transparent);
+  }
+}
+
+@layer utilities {
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-content {
+    @apply relative w-full max-w-md rounded-2xl p-6 sm:p-8;
+    background-color: var(--bg-color);
+    border: 1px solid color-mix(in srgb, var(--text-color) 15%, transparent);
+  }
+
+  .bottom-tab-bar {
+    @apply fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around border-t py-2;
+    background-color: var(--bg-color);
+    border-color: color-mix(in srgb, var(--text-color) 15%, transparent);
+  }
+}
