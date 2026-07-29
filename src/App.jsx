@@ -13,6 +13,7 @@ import NewCase from './pages/app/NewCase'
 import Settings from './pages/app/Settings'
 import { CasesProvider } from './lib/CasesContext'
 import { DocumentsProvider } from './lib/DocumentsContext'
+import { HearingsProvider } from './lib/HearingsContext'
 
 function ProtectedRoute({ session, children }) {
   if (!session) return <Navigate to="/" replace />
@@ -104,7 +105,9 @@ export default function App() {
             <ProtectedRoute session={session}>
               <CasesProvider>
                 <DocumentsProvider>
-                  <AppShell />
+                  <HearingsProvider>
+                    <AppShell />
+                  </HearingsProvider>
                 </DocumentsProvider>
               </CasesProvider>
             </ProtectedRoute>

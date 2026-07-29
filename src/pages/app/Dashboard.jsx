@@ -1,15 +1,27 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useCasesContext } from '../../lib/CasesContext'
+import { useHearingsContext } from '../../lib/HearingsContext'
 import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
+import DueTodayList from '../../components/dashboard/DueTodayList'
+import UpcomingWeekList from '../../components/dashboard/UpcomingWeekList'
+import OverdueList from '../../components/dashboard/OverdueList'
 
 export default function Dashboard() {
   const { cases } = useCasesContext()
+  const { getPendingCounts } = useHearingsContext()
+
+  const { dueToday, dueThisWeek, overdue, totalPending } = getPendingCounts()
 
   const activeCases = useMemo(() => cases.filter((c) => !['disposed', 'closed'].includes(c.status)), [cases])
-  const dueToday = 0
-  const dueThisWeek = 0
   const recentCases = useMemo(() => [...cases].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5), [cases])
+
+  const enrichedDueToday = useMemo(() =>
+    dueToday.map((h) => ({ ...h, case_title: cases.find((c) => c.id === h.case_id)?.title })), [dueToday, cases])
+  const enrichedDueThisWeek = useMemo(() =>
+    dueThisWeek.map((h) => ({ ...h, case_title: cases.find((c) => c.id === h.case_id)?.title })), [dueThisWeek, cases])
+  const enrichedOverdue = useMemo(() =>
+    overdue.map((h) => ({ ...h, case_title: cases.find((c) => c.id === h.case_id)?.title })), [overdue, cases])
 
   return (
     <div className="mx-auto max-w-6xl pt-4">
@@ -18,14 +30,16 @@ export default function Dashboard() {
         Your case deadlines at a glance
       </p>
 
-      <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <div className="card">
           <h3 className="text-sm font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
             Due Today
           </h3>
-          <p className="mt-2 text-3xl font-bold" style={{ color: dueToday > 0 ? 'var(--main-color)' : 'inherit' }}>{dueToday}</p>
+          <p className="mt-2 text-3xl font-bold" style={{ color: dueToday.length > 0 ? 'var(--main-color)' : 'inherit' }}>
+            {dueToday.length}
+          </p>
           <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-            {dueToday > 0 ? 'Deadlines requiring attention' : 'No deadlines today'}
+            {dueToday.length > 0 ? 'Requiring attention' : 'No deadlines today'}
           </p>
         </div>
 
@@ -33,9 +47,21 @@ export default function Dashboard() {
           <h3 className="text-sm font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
             This Week
           </h3>
-          <p className="mt-2 text-3xl font-bold">{dueThisWeek}</p>
+          <p className="mt-2 text-3xl font-bold">{dueThisWeek.length}</p>
           <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-            {dueThisWeek > 0 ? 'Upcoming this week' : 'No upcoming deadlines'}
+            {dueThisWeek.length > 0 ? 'Upcoming deadlines' : 'No upcoming deadlines'}
+          </p>
+        </div>
+
+        <div className="card">
+          <h3 className="text-sm font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+            Overdue
+          </h3>
+          <p className="mt-2 text-3xl font-bold" style={{ color: overdue.length > 0 ? '#ef4444' : 'inherit' }}>
+            {overdue.length}
+          </p>
+          <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+            {overdue.length > 0 ? 'Past due date' : 'All up to date'}
           </p>
         </div>
 
@@ -45,9 +71,20 @@ export default function Dashboard() {
           </h3>
           <p className="mt-2 text-3xl font-bold" style={{ color: 'var(--main-color)' }}>{activeCases.length}</p>
           <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-            {activeCases.length === 0 ? 'No cases yet — create your first' : 'In progress'}
+            {activeCases.length === 0 ? 'No cases yet' : `Pending (${totalPending} deadlines)`}
           </p>
         </div>
+      </div>
+
+      {enrichedOverdue.length > 0 && (
+        <div className="mt-6">
+          <OverdueList hearings={enrichedOverdue} />
+        </div>
+      )}
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        {enrichedDueToday.length > 0 && <DueTodayList hearings={enrichedDueToday} />}
+        {enrichedDueThisWeek.length > 0 && <UpcomingWeekList hearings={enrichedDueThisWeek} />}
       </div>
 
       <div className="mt-8">

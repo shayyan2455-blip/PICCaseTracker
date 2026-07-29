@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useCasesContext } from '../../lib/CasesContext'
 import { useDocumentsContext } from '../../lib/DocumentsContext'
+import { useHearingsContext } from '../../lib/HearingsContext'
 import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import DocumentTimeline from '../../components/cases/DocumentTimeline'
 import UploadModal from '../../components/upload/UploadModal'
@@ -11,8 +12,23 @@ export default function CaseDetail() {
   const navigate = useNavigate()
   const { getCase } = useCasesContext()
   const { addDocument } = useDocumentsContext()
+  const { addHearing } = useHearingsContext()
   const [uploadOpen, setUploadOpen] = useState(false)
   const c = getCase(id)
+
+  function handleUpload(doc) {
+    addDocument(doc)
+    if (doc.extracted_date) {
+      addHearing({
+        case_id: id,
+        document_id: null,
+        due_date: doc.extracted_date,
+        outcome: 'pending',
+        next_date: null,
+        notes: null,
+      })
+    }
+  }
 
   if (!c) {
     return (
@@ -101,7 +117,7 @@ export default function CaseDetail() {
         isOpen={uploadOpen}
         onClose={() => setUploadOpen(false)}
         caseId={id}
-        onUpload={addDocument}
+        onUpload={handleUpload}
       />
     </div>
   )
