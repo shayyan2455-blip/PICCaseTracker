@@ -12,6 +12,7 @@ import CaseDetail from './pages/app/CaseDetail'
 import NewCase from './pages/app/NewCase'
 import Settings from './pages/app/Settings'
 import { CasesProvider } from './lib/CasesContext'
+import { DocumentsProvider } from './lib/DocumentsContext'
 
 function ProtectedRoute({ session, children }) {
   if (!session) return <Navigate to="/" replace />
@@ -102,7 +103,9 @@ export default function App() {
           element={
             <ProtectedRoute session={session}>
               <CasesProvider>
-                <AppShell />
+                <DocumentsProvider>
+                  <AppShell />
+                </DocumentsProvider>
               </CasesProvider>
             </ProtectedRoute>
           }

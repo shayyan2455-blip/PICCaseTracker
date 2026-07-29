@@ -1,11 +1,17 @@
+import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useCasesContext } from '../../lib/CasesContext'
+import { useDocumentsContext } from '../../lib/DocumentsContext'
 import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
+import DocumentTimeline from '../../components/cases/DocumentTimeline'
+import UploadModal from '../../components/upload/UploadModal'
 
 export default function CaseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { getCase } = useCasesContext()
+  const { addDocument } = useDocumentsContext()
+  const [uploadOpen, setUploadOpen] = useState(false)
   const c = getCase(id)
 
   if (!c) {
@@ -82,27 +88,21 @@ export default function CaseDetail() {
       </div>
 
       <div className="mt-10">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">Documents</h2>
-          <button className="btn-primary text-sm px-4 py-2">
+          <button onClick={() => setUploadOpen(true)} className="btn-primary text-sm px-4 py-2">
             + Upload
           </button>
         </div>
-        <div className="card mt-4 flex flex-col items-center py-16 text-center">
-          <svg className="mb-4 h-12 w-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" style={{ color: 'color-mix(in srgb, var(--text-color) 20%, transparent)' }}>
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="12" y1="12" x2="12" y2="18" />
-            <line x1="9" y1="15" x2="15" y2="15" />
-          </svg>
-          <p className="font-medium" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-            No documents uploaded yet
-          </p>
-          <p className="mt-1 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 40%, transparent)' }}>
-            Upload the RTI request, appeal, notices, and order here
-          </p>
-        </div>
+        <DocumentTimeline caseId={id} />
       </div>
+
+      <UploadModal
+        isOpen={uploadOpen}
+        onClose={() => setUploadOpen(false)}
+        caseId={id}
+        onUpload={addDocument}
+      />
     </div>
   )
 }
