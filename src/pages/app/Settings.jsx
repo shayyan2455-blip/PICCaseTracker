@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
+import { getOrgId } from '../../lib/org'
 
 export default function Settings() {
   const [reminderDays, setReminderDays] = useState(2)
@@ -8,6 +9,43 @@ export default function Settings() {
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [loadingPrefs, setLoadingPrefs] = useState(true)
+
+  useEffect(() => {
+    getOrgId().then(async (orgId) => {
+      if (!orgId) { setLoadingPrefs(false); return }
+      const { data } = await supabase
+        .from('org_reminder_prefs')
+        .select('*')
+        .eq('organization_id', orgId)
+        .maybeSingle()
+      if (data) {
+        setReminderDays(data.days_before)
+        setReminderTime(data.send_at_time?.slice(0, 5) || '07:00')
+      }
+      setLoadingPrefs(false)
+    })
+  }, [])
+
+  async function handleSave() {
+    setError('')
+    setSaved(false)
+    const orgId = await getOrgId()
+    if (!orgId) { setError('No organization found'); return }
+
+    const { error: err } = await supabase
+      .from('org_reminder_prefs')
+      .upsert({
+        organization_id: orgId,
+        days_before: reminderDays,
+        send_at_time: reminderTime + ':00',
+        enabled: true,
+      }, { onConflict: 'organization_id' })
+
+    if (err) { setError(err.message); return }
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
 
   async function handleSendTestReminder() {
     setSending(true)
@@ -25,15 +63,12 @@ export default function Settings() {
       const res = await fetch('/api/send-reminder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: user.email,
-          type: 'test',
-        }),
+        body: JSON.stringify({ to: user.email, type: 'test' }),
       })
 
       if (!res.ok) {
-        const err = await res.text()
-        throw new Error(err || 'Failed to send')
+        const errBody = await res.json()
+        throw new Error(errBody.error || 'Failed to send')
       }
 
       setSent(true)
@@ -43,19 +78,21 @@ export default function Settings() {
     setSending(false)
   }
 
-  function handleSave() {
-    localStorage.setItem('pic_reminder_days', reminderDays.toString())
-    localStorage.setItem('pic_reminder_time', reminderTime)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
-  }
-
   function inputStyle() {
     return {
       backgroundColor: 'var(--second-bg-color)',
       borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
       color: 'var(--text-color)',
     }
+  }
+
+  if (loadingPrefs) {
+    return (
+      <div className="mx-auto max-w-2xl pt-4">
+        <h1 className="text-2xl font-bold sm:text-3xl">Settings</h1>
+        <p className="mt-4">Loading...</p>
+      </div>
+    )
   }
 
   return (
@@ -69,8 +106,12 @@ export default function Settings() {
         <div className="card">
           <h2 className="text-lg font-bold">Reminder Preferences</h2>
           <p className="mt-1 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-            Reminders are sent to your account email address
+            Reminders are sent to all lawyers and owners in your firm
           </p>
+
+          {error && (
+            <div className="mt-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>
+          )}
 
           <div className="mt-6 grid gap-5 sm:grid-cols-2">
             <div>
@@ -115,10 +156,6 @@ export default function Settings() {
           <p className="mt-1 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
             Send a test email to your account to verify email delivery is working
           </p>
-
-          {error && (
-            <div className="mt-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>
-          )}
 
           {sent && (
             <div className="mt-4 rounded-lg bg-green-500/10 px-4 py-3 text-sm text-green-500">
