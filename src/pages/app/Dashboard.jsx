@@ -16,7 +16,6 @@ export default function Dashboard() {
   const [orgName, setOrgName] = useState('')
   const [orgLoading, setOrgLoading] = useState(false)
   const [orgError, setOrgError] = useState('')
-  const [orgDebug, setOrgDebug] = useState([])
 
   const { dueToday, dueThisWeek, overdue, totalPending } = getPendingCounts()
 
@@ -28,56 +27,74 @@ export default function Dashboard() {
     e.preventDefault()
     if (!orgName.trim()) return
     setOrgError('')
-    setOrgDebug([])
     setOrgLoading(true)
 
-    function dbg(msg) { console.log('[dashboard-org]', msg); setOrgDebug(p => [...p, msg]) }
+    const logs = []
 
-    dbg('Looking up current user...')
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setOrgError('Not logged in'); setOrgLoading(false); return }
-    dbg('User: ' + user.id)
-
-    dbg('Calling RPC create_organization...')
-    const { data: rpcResult, error: rpcError } = await supabase.rpc(
-      'create_organization',
-      { org_name: orgName.trim(), user_id: user.id }
-    )
-    dbg('RPC: result=' + JSON.stringify(rpcResult) + ' error=' + JSON.stringify(rpcError))
-
-    if (rpcResult) {
-      dbg('SUCCESS! Org created: ' + rpcResult)
-      setOrgId(rpcResult)
-      dbg('Saved to localStorage')
-      await supabase.auth.updateUser({ data: { default_organization_id: rpcResult } })
-      dbg('Saved to user_metadata')
-      dbg('Reloading...')
-      window.location.reload()
-      return
+    function dbg(msg) {
+      logs.push(msg)
+      console.log('[dbg]', msg)
+      setOrgError(logs.join('\n'))
     }
 
-    dbg('RPC failed. Trying direct inserts...')
-    const { data: org, error: orgError2 } = await supabase
-      .from('organizations')
-      .insert({ name: orgName.trim() })
-      .select()
-      .single()
-    dbg('Org insert: ' + (orgError2 ? 'ERROR: ' + orgError2.message : 'OK id=' + org?.id))
+    try {
+      dbg('Step 1: Getting current user...')
+      const { data: { user }, error: uErr } = await supabase.auth.getUser()
+      if (uErr) { dbg('FAIL getUser: ' + uErr.message); setOrgLoading(false); return }
+      if (!user) { dbg('FAIL: no user'); setOrgLoading(false); return }
+      dbg('OK user=' + user.id)
 
-    if (orgError2) { setOrgError('Org error: ' + orgError2.message); setOrgLoading(false); return }
+      dbg('Step 2: Calling RPC create_organization...')
+      let rpcResult, rpcError
+      try {
+        const resp = await supabase.rpc('create_organization', {
+          org_name: orgName.trim(),
+          user_id: user.id,
+        })
+        rpcResult = resp.data
+        rpcError = resp.error
+      } catch (rpcEx) {
+        dbg('RPC THREW EXCEPTION: ' + rpcEx.message)
+        rpcResult = null
+      }
+      dbg('RPC result=' + JSON.stringify(rpcResult) + ' error=' + JSON.stringify(rpcError))
 
-    const { error: memError } = await supabase
-      .from('members')
-      .insert({ organization_id: org.id, user_id: user.id, role: 'owner' })
-    dbg('Member insert: ' + (memError ? 'ERROR: ' + memError.message : 'OK'))
+      if (rpcResult) {
+        dbg('RPC SUCCESS! Org=' + rpcResult)
+        setOrgId(rpcResult)
+        await supabase.auth.updateUser({ data: { default_organization_id: rpcResult } })
+        dbg('DONE. Reloading...')
+        window.location.reload()
+        return
+      }
 
-    if (memError) { setOrgError('Member error: ' + memError.message); setOrgLoading(false); return }
+      dbg('RPC unavailable. Trying direct insert...')
+      const { data: org, error: orgErr } = await supabase
+        .from('organizations')
+        .insert({ name: orgName.trim() })
+        .select()
+        .single()
+      dbg('Direct org insert: ' + (orgErr ? 'FAIL: ' + orgErr.message : 'OK id=' + org?.id))
 
-    dbg('SUCCESS via direct insert!')
-    setOrgId(org.id)
-    await supabase.auth.updateUser({ data: { default_organization_id: org.id } })
-    dbg('Reloading...')
-    window.location.reload()
+      if (orgErr) { dbg('ABORT: ' + orgErr.message); setOrgLoading(false); return }
+
+      dbg('Inserting member...')
+      const { error: memErr } = await supabase
+        .from('members')
+        .insert({ organization_id: org.id, user_id: user.id, role: 'owner' })
+      dbg('Member insert: ' + (memErr ? 'FAIL: ' + memErr.message : 'OK'))
+
+      if (memErr) { dbg('ABORT: ' + memErr.message); setOrgLoading(false); return }
+
+      dbg('Direct SUCCESS! Org=' + org.id)
+      setOrgId(org.id)
+      await supabase.auth.updateUser({ data: { default_organization_id: org.id } })
+      dbg('DONE. Reloading...')
+      window.location.reload()
+    } catch (e) {
+      dbg('UNCAUGHT EXCEPTION: ' + e.message + ' | stack: ' + (e.stack || ''))
+      setOrgLoading(false)
+    }
   }
 
   const activeCases = useMemo(() => cases.filter((c) => !['disposed', 'closed'].includes(c.status)), [cases])
@@ -117,12 +134,8 @@ export default function Dashboard() {
           </p>
 
           {orgError && (
-            <div className="mt-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{orgError}</div>
-          )}
-
-          {orgDebug.length > 0 && (
-            <div className="mt-4 max-h-40 overflow-y-auto rounded-lg bg-gray-900/10 px-3 py-2 text-xs font-mono text-left" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
-              {orgDebug.map((line, i) => <div key={i}>{line}</div>)}
+            <div className="mt-4 max-h-60 overflow-y-auto whitespace-pre-wrap rounded-lg bg-gray-900/10 px-4 py-3 text-left text-xs font-mono leading-relaxed" style={{ color: 'var(--text-color)' }}>
+              {orgError}
             </div>
           )}
 
