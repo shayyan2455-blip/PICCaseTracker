@@ -18,11 +18,13 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     setError('')
     setLoading(true)
 
+    console.log('[signup] calling auth.signUp...')
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: window.location.origin + '/app' },
     })
+    console.log('[signup] signUp response:', { data, authError })
 
     setLoading(false)
     if (authError) {
@@ -32,6 +34,12 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
 
     if (data?.user) {
       userIdRef.current = data.user.id
+      console.log('[signup] user created, id:', userIdRef.current)
+
+      // Check if user is authenticated immediately after signup
+      const { data: { session } } = await supabase.auth.getSession()
+      console.log('[signup] session after signup:', session ? 'exists' : 'null')
+
       setStep('org')
     }
   }
@@ -42,48 +50,63 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     setError('')
     setLoading(true)
 
-    const { data: org, error: orgError } = await supabase
-      .from('organizations')
-      .insert({ name: orgName.trim() })
-      .select()
-      .single()
+    try {
+      console.log('[signup] starting org creation, userIdRef:', userIdRef.current)
 
-    if (orgError) {
-      console.error('[signup] org insert error:', orgError)
-      setError(orgError.message)
+      const { data: org, error: orgError } = await supabase
+        .from('organizations')
+        .insert({ name: orgName.trim() })
+        .select()
+        .single()
+
+      if (orgError) {
+        console.error('[signup] org insert error:', JSON.stringify(orgError))
+        setError('Org error: ' + orgError.message)
+        setLoading(false)
+        return
+      }
+      console.log('[signup] org created:', org)
+
+      // Check auth state right before member insert
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      console.log('[signup] auth.getUser before member insert:', currentUser?.id)
+      console.log('[signup] userIdRef matches auth user?', currentUser?.id === userIdRef.current)
+
+      const memberPayload = {
+        organization_id: org.id,
+        user_id: userIdRef.current,
+        role: 'owner',
+      }
+
+      const { data: memberData, error: memberError } = await supabase
+        .from('members')
+        .insert(memberPayload)
+        .select()
+
+      console.log('[signup] member insert response:', { memberData, memberError: memberError ? JSON.stringify(memberError) : null })
+
       setLoading(false)
-      return
+      if (memberError) {
+        setError('Member error: ' + memberError.message)
+        return
+      }
+
+      console.log('[signup] saving org id to localStorage and metadata...')
+      setOrgId(org.id)
+      console.log('[signup] localStorage after setOrgId:', localStorage.getItem('pic_org_id'))
+
+      const updateRes = await supabase.auth.updateUser({
+        data: { default_organization_id: org.id },
+      })
+      console.log('[signup] updateUser done:', updateRes.error ? JSON.stringify(updateRes.error) : 'success')
+
+      console.log('[signup] all done, closing modal')
+      onClose()
+    } catch (e) {
+      console.error('[signup] UNCAUGHT ERROR in handleCreateOrg:', e)
+      setError('Unexpected error: ' + e.message)
+      setLoading(false)
     }
-    console.log('[signup] org created:', org.id, 'user_id:', userIdRef.current)
-
-    const memberPayload = {
-      organization_id: org.id,
-      user_id: userIdRef.current,
-      role: 'owner',
-    }
-    console.log('[signup] inserting member:', JSON.stringify(memberPayload))
-
-    const { data: memberData, error: memberError } = await supabase
-      .from('members')
-      .insert(memberPayload)
-      .select()
-
-    console.log('[signup] member insert response:', { memberData, memberError })
-
-    setLoading(false)
-    if (memberError) {
-      setError(memberError.message)
-      return
-    }
-
-    setOrgId(org.id)
-    console.log('[signup] setOrgId done')
-    const updateRes = await supabase.auth.updateUser({
-      data: { default_organization_id: org.id },
-    })
-    console.log('[signup] updateUser done:', updateRes.error)
-
-    onClose()
   }
 
   function resetForm() {
