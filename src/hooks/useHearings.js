@@ -1,53 +1,70 @@
-import { useState, useCallback } from 'react'
-
-const seedHearings = [
-  {
-    id: 'h1',
-    case_id: '1',
-    document_id: 'd3',
-    due_date: '2026-08-10',
-    outcome: 'pending',
-    next_date: null,
-    notes: null,
-    created_at: '2026-07-22T09:15:00Z',
-    resolved_at: null,
-  },
-]
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { getOrgId } from '../lib/org'
 
 export function useHearings() {
-  const [hearings, setHearings] = useState(seedHearings)
-  const [loading, setLoading] = useState(false)
+  const [hearings, setHearings] = useState([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  const loadHearings = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const orgId = await getOrgId()
+    if (!orgId) { setHearings([]); setLoading(false); return }
+
+    const { data, error: err } = await supabase
+      .from('hearings')
+      .select('*')
+      .eq('organization_id', orgId)
+      .order('due_date', { ascending: true })
+
+    if (err) { setError(err.message) }
+    else { setHearings(data || []) }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { loadHearings() }, [loadHearings])
 
   const getHearingsForCase = useCallback((caseId) => {
     return hearings.filter((h) => h.case_id === caseId)
   }, [hearings])
 
-  const addHearing = useCallback((hearing) => {
-    setHearings((prev) => [
-      {
-        ...hearing,
-        id: crypto.randomUUID(),
-        created_at: new Date().toISOString(),
-        resolved_at: null,
-      },
-      ...prev,
-    ])
+  const addHearing = useCallback(async (hearing) => {
+    const orgId = await getOrgId()
+    if (!orgId) throw new Error('No organization found')
+
+    const { data, error: err } = await supabase
+      .from('hearings')
+      .insert({ ...hearing, organization_id: orgId })
+      .select()
+      .single()
+
+    if (err) throw new Error(err.message)
+    setHearings((prev) => [...prev, data])
+    return data
   }, [])
 
-  const updateHearing = useCallback((id, updates) => {
-    setHearings((prev) =>
-      prev.map((h) => (h.id === id ? { ...h, ...updates } : h))
-    )
+  const updateHearing = useCallback(async (id, updates) => {
+    const { error: err } = await supabase
+      .from('hearings')
+      .update(updates)
+      .eq('id', id)
+
+    if (err) throw new Error(err.message)
+    setHearings((prev) => prev.map((h) => (h.id === id ? { ...h, ...updates } : h)))
   }, [])
 
-  const resolveHearing = useCallback((id, outcome = 'resolved', notes = '') => {
+  const resolveHearing = useCallback(async (id, outcome = 'resolved', notes = '') => {
+    const now = new Date().toISOString()
+    const { error: err } = await supabase
+      .from('hearings')
+      .update({ outcome, notes, resolved_at: now })
+      .eq('id', id)
+
+    if (err) throw new Error(err.message)
     setHearings((prev) =>
-      prev.map((h) =>
-        h.id === id
-          ? { ...h, outcome, notes, resolved_at: new Date().toISOString() }
-          : h
-      )
+      prev.map((h) => (h.id === id ? { ...h, outcome, notes, resolved_at: now } : h))
     )
   }, [])
 
@@ -82,6 +99,6 @@ export function useHearings() {
 
   return {
     hearings, loading, error,
-    getHearingsForCase, addHearing, updateHearing, resolveHearing, getPendingCounts,
+    getHearingsForCase, addHearing, updateHearing, resolveHearing, getPendingCounts, refresh: loadHearings,
   }
 }

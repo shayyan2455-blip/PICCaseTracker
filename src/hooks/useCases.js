@@ -1,83 +1,49 @@
-import { useState } from 'react'
-
-// Seed data for development — replaced with Supabase queries later
-const seedCases = [
-  {
-    id: '1',
-    organization_id: 'org-1',
-    case_number: '5837-07/26',
-    title: 'Rana Abdul Qayyum vs NIRC',
-    public_body: 'NIRC',
-    applicant_name: 'Rana Abdul Qayyum',
-    applicant_address: 'Lahore, Punjab',
-    status: 'under_notice',
-    created_by: 'user-1',
-    created_at: '2026-07-15T10:00:00Z',
-    closed_at: null,
-  },
-  {
-    id: '2',
-    organization_id: 'org-1',
-    case_number: '5912-07/26',
-    title: 'Ahmed Hassan vs Senate Secretariat',
-    public_body: 'Senate Secretariat',
-    applicant_name: 'Ahmed Hassan',
-    applicant_address: 'Islamabad',
-    status: 'appeal_filed',
-    created_by: 'user-1',
-    created_at: '2026-07-20T14:30:00Z',
-    closed_at: null,
-  },
-  {
-    id: '3',
-    organization_id: 'org-1',
-    case_number: '6015-07/26',
-    title: 'Zainab Ali vs Ministry of Law',
-    public_body: 'Ministry of Law',
-    applicant_name: 'Zainab Ali',
-    applicant_address: 'Karachi, Sindh',
-    status: 'rti_filed',
-    created_by: 'user-1',
-    created_at: '2026-07-25T09:15:00Z',
-    closed_at: null,
-  },
-  {
-    id: '4',
-    organization_id: 'org-1',
-    case_number: '5720-06/26',
-    title: 'Omar Farooq vs PEMRA',
-    public_body: 'PEMRA',
-    applicant_name: 'Omar Farooq',
-    applicant_address: 'Rawalpindi',
-    status: 'disposed',
-    created_by: 'user-1',
-    created_at: '2026-06-10T11:00:00Z',
-    closed_at: '2026-07-28T16:00:00Z',
-  },
-]
+import { useState, useEffect, useCallback } from 'react'
+import { supabase } from '../lib/supabaseClient'
+import { getOrgId } from '../lib/org'
 
 export function useCases() {
-  const [cases, setCases] = useState(seedCases)
-  const [loading] = useState(false)
-  const [error] = useState(null)
+  const [cases, setCases] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  function addCase(newCase) {
-    setCases((prev) => [
-      {
-        ...newCase,
-        id: crypto.randomUUID(),
-        organization_id: 'org-1',
-        created_by: 'user-1',
-        created_at: new Date().toISOString(),
-        closed_at: null,
-      },
-      ...prev,
-    ])
-  }
+  const loadCases = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    const orgId = await getOrgId()
+    if (!orgId) { setCases([]); setLoading(false); return }
 
-  function getCase(id) {
+    const { data, error: err } = await supabase
+      .from('cases')
+      .select('*')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false })
+
+    if (err) { setError(err.message) }
+    else { setCases(data || []) }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { loadCases() }, [loadCases])
+
+  const addCase = useCallback(async (newCase) => {
+    const orgId = await getOrgId()
+    if (!orgId) throw new Error('No organization found')
+
+    const { data, error: err } = await supabase
+      .from('cases')
+      .insert({ ...newCase, organization_id: orgId })
+      .select()
+      .single()
+
+    if (err) throw new Error(err.message)
+    setCases((prev) => [data, ...prev])
+    return data
+  }, [])
+
+  const getCase = useCallback((id) => {
     return cases.find((c) => c.id === id) || null
-  }
+  }, [cases])
 
-  return { cases, loading, error, addCase, getCase }
+  return { cases, loading, error, addCase, getCase, refresh: loadCases }
 }

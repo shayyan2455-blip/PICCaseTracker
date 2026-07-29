@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -16,6 +17,7 @@ const schema = z.object({
 export default function NewCase() {
   const navigate = useNavigate()
   const { addCase } = useCasesContext()
+  const [submitError, setSubmitError] = useState('')
   const {
     register,
     handleSubmit,
@@ -25,9 +27,13 @@ export default function NewCase() {
     defaultValues: { status: 'rti_filed' },
   })
 
-  function onSubmit(data) {
-    addCase(data)
-    navigate('/app/cases')
+  async function onSubmit(data) {
+    try {
+      await addCase(data)
+      navigate('/app/cases')
+    } catch (e) {
+      setSubmitError(e.message)
+    }
   }
 
   function inputClass(field) {
@@ -53,6 +59,9 @@ export default function NewCase() {
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 flex flex-col gap-5">
+        {submitError && (
+          <div className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{submitError}</div>
+        )}
         <div>
           <label className="mb-1.5 block text-sm font-medium">Case Title *</label>
           <input

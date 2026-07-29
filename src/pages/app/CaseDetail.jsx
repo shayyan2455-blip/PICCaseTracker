@@ -16,12 +16,12 @@ export default function CaseDetail() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const c = getCase(id)
 
-  function handleUpload(doc) {
-    addDocument(doc)
-    if (doc.extracted_date) {
-      addHearing({
+  async function handleUpload(doc) {
+    const newDoc = await addDocument(doc)
+    if (doc.extracted_date && newDoc) {
+      await addHearing({
         case_id: id,
-        document_id: null,
+        document_id: newDoc.id,
         due_date: doc.extracted_date,
         outcome: 'pending',
         next_date: null,
