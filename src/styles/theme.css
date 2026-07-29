@@ -10,6 +10,6 @@
   --bg-color: #ffffff;
   --second-bg-color: #f0f0f0;
   --text-color: #000000;
-  --main-color: #c2410c;
-  --span-color: linear-gradient(270deg, #d97706 10%, #c2410c 100%);
+  --main-color: #4caf50;
+  --span-color: linear-gradient(270deg, #22c55e 10%, #15803d 100%);
 }
