@@ -8,8 +8,10 @@ import SignupModal from './components/auth/SignupModal'
 import AppShell from './components/layout/AppShell'
 import Dashboard from './pages/app/Dashboard'
 import CaseList from './pages/app/CaseList'
+import CaseDetail from './pages/app/CaseDetail'
 import NewCase from './pages/app/NewCase'
 import Settings from './pages/app/Settings'
+import { CasesProvider } from './lib/CasesContext'
 
 function ProtectedRoute({ session, children }) {
   if (!session) return <Navigate to="/" replace />
@@ -99,13 +101,16 @@ export default function App() {
           path="/app"
           element={
             <ProtectedRoute session={session}>
-              <AppShell />
+              <CasesProvider>
+                <AppShell />
+              </CasesProvider>
             </ProtectedRoute>
           }
         >
           <Route index element={<Dashboard />} />
           <Route path="cases" element={<CaseList />} />
           <Route path="cases/new" element={<NewCase />} />
+          <Route path="cases/:id" element={<CaseDetail />} />
           <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
