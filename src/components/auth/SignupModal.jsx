@@ -68,7 +68,7 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
       addDebug('Calling RPC create_organization...')
       const rpcResponse = await supabase.rpc('create_organization', {
         org_name: orgName.trim(),
-        user_id: userIdRef.current,
+        owner_id: userIdRef.current,
       })
       addDebug('RPC response: data=' + JSON.stringify(rpcResponse.data) + ' error=' + JSON.stringify(rpcResponse.error))
 

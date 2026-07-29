@@ -49,7 +49,7 @@ export default function Dashboard() {
       try {
         const resp = await supabase.rpc('create_organization', {
           org_name: orgName.trim(),
-          user_id: user.id,
+          owner_id: user.id,
         })
         rpcResult = resp.data
         rpcError = resp.error
