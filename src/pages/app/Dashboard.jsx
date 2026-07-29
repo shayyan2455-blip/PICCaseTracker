@@ -8,6 +8,7 @@ import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import DueTodayList from '../../components/dashboard/DueTodayList'
 import UpcomingWeekList from '../../components/dashboard/UpcomingWeekList'
 import OverdueList from '../../components/dashboard/OverdueList'
+import { StatGridSkeleton, RowSkeleton } from '../../components/ui/Skeleton'
 
 export default function Dashboard() {
   const { cases } = useCasesContext()
@@ -63,7 +64,11 @@ export default function Dashboard() {
     return (
       <div className="mx-auto max-w-6xl pt-4">
         <h1 className="text-2xl font-bold sm:text-3xl">Dashboard</h1>
-        <p className="mt-4">Loading...</p>
+        <p className="mt-2" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>Loading your deadlines...</p>
+        <div className="mt-8"><StatGridSkeleton /></div>
+        <div className="mt-8 space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => <RowSkeleton key={i} />)}
+        </div>
       </div>
     )
   }

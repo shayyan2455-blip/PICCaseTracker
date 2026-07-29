@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useCasesContext } from '../../lib/CasesContext'
 import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import CaseCard from '../../components/cases/CaseCard'
+import { TableSkeleton } from '../../components/ui/Skeleton'
 
 export default function CaseList() {
   const { cases, loading } = useCasesContext()
@@ -26,8 +27,9 @@ export default function CaseList() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-b-transparent" style={{ borderColor: 'var(--main-color)', borderBottomColor: 'transparent' }} />
+      <div className="mx-auto max-w-6xl pt-4">
+        <h1 className="text-2xl font-bold sm:text-3xl">Cases</h1>
+        <div className="mt-6"><TableSkeleton rows={6} /></div>
       </div>
     )
   }
