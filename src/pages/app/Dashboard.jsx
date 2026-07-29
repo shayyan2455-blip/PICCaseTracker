@@ -29,70 +29,22 @@ export default function Dashboard() {
     setOrgError('')
     setOrgLoading(true)
 
-    const logs = []
-
-    function dbg(msg) {
-      logs.push(msg)
-      console.log('[dbg]', msg)
-      setOrgError(logs.join('\n'))
-    }
-
     try {
-      dbg('Step 1: Getting current user...')
-      const { data: { user }, error: uErr } = await supabase.auth.getUser()
-      if (uErr) { dbg('FAIL getUser: ' + uErr.message); setOrgLoading(false); return }
-      if (!user) { dbg('FAIL: no user'); setOrgLoading(false); return }
-      dbg('OK user=' + user.id)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setOrgError('Not logged in'); setOrgLoading(false); return }
 
-      dbg('Step 2: Calling RPC create_organization...')
-      let rpcResult, rpcError
-      try {
-        const resp = await supabase.rpc('create_organization', {
-          org_name: orgName.trim(),
-          owner_id: user.id,
-        })
-        rpcResult = resp.data
-        rpcError = resp.error
-      } catch (rpcEx) {
-        dbg('RPC THREW EXCEPTION: ' + rpcEx.message)
-        rpcResult = null
-      }
-      dbg('RPC result=' + JSON.stringify(rpcResult) + ' error=' + JSON.stringify(rpcError))
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('create_organization', {
+        org_name: orgName.trim(),
+        owner_id: user.id,
+      })
 
-      if (rpcResult) {
-        dbg('RPC SUCCESS! Org=' + rpcResult)
-        setOrgId(rpcResult)
-        await supabase.auth.updateUser({ data: { default_organization_id: rpcResult } })
-        dbg('DONE. Reloading...')
-        window.location.reload()
-        return
-      }
+      if (rpcError) { setOrgError(rpcError.message); setOrgLoading(false); return }
 
-      dbg('RPC unavailable. Trying direct insert...')
-      const { data: org, error: orgErr } = await supabase
-        .from('organizations')
-        .insert({ name: orgName.trim() })
-        .select()
-        .single()
-      dbg('Direct org insert: ' + (orgErr ? 'FAIL: ' + orgErr.message : 'OK id=' + org?.id))
-
-      if (orgErr) { dbg('ABORT: ' + orgErr.message); setOrgLoading(false); return }
-
-      dbg('Inserting member...')
-      const { error: memErr } = await supabase
-        .from('members')
-        .insert({ organization_id: org.id, user_id: user.id, role: 'owner' })
-      dbg('Member insert: ' + (memErr ? 'FAIL: ' + memErr.message : 'OK'))
-
-      if (memErr) { dbg('ABORT: ' + memErr.message); setOrgLoading(false); return }
-
-      dbg('Direct SUCCESS! Org=' + org.id)
-      setOrgId(org.id)
-      await supabase.auth.updateUser({ data: { default_organization_id: org.id } })
-      dbg('DONE. Reloading...')
+      setOrgId(rpcResult)
+      await supabase.auth.updateUser({ data: { default_organization_id: rpcResult } })
       window.location.reload()
     } catch (e) {
-      dbg('UNCAUGHT EXCEPTION: ' + e.message + ' | stack: ' + (e.stack || ''))
+      setOrgError(e.message)
       setOrgLoading(false)
     }
   }
@@ -134,9 +86,7 @@ export default function Dashboard() {
           </p>
 
           {orgError && (
-            <div className="mt-4 max-h-60 overflow-y-auto whitespace-pre-wrap rounded-lg bg-gray-900/10 px-4 py-3 text-left text-xs font-mono leading-relaxed" style={{ color: 'var(--text-color)' }}>
-              {orgError}
-            </div>
+            <div className="mt-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{orgError}</div>
           )}
 
           <form onSubmit={handleCreateOrg} className="mt-6 flex flex-col gap-4">

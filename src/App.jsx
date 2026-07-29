@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { initTheme } from './lib/theme'
 import { supabase } from './lib/supabaseClient'
+import ErrorBoundary from './components/ErrorBoundary'
 import LandingPage from './pages/LandingPage'
+import NotFound from './pages/NotFound'
 import LoginModal from './components/auth/LoginModal'
 import SignupModal from './components/auth/SignupModal'
 import AppShell from './components/layout/AppShell'
@@ -76,52 +78,55 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/accept-invite" element={<AcceptInvite />} />
-        <Route
-          path="/"
-          element={
-            session ? (
-              <Navigate to="/app" replace />
-            ) : (
-              <>
-                <LandingPage onOpenLogin={openLogin} onOpenSignup={openSignup} />
-                <LoginModal
-                  isOpen={loginOpen}
-                  onClose={closeModals}
-                  onSwitchToSignup={switchToSignup}
-                />
-                <SignupModal
-                  isOpen={signupOpen}
-                  onClose={closeModals}
-                  onSwitchToLogin={switchToLogin}
-                />
-              </>
-            )
-          }
-        />
-        <Route
-          path="/app"
-          element={
-            <ProtectedRoute session={session}>
-              <CasesProvider>
-                <DocumentsProvider>
-                  <HearingsProvider>
-                    <AppShell />
-                  </HearingsProvider>
-                </DocumentsProvider>
-              </CasesProvider>
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="cases" element={<CaseList />} />
-          <Route path="cases/new" element={<NewCase />} />
-          <Route path="cases/:id" element={<CaseDetail />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/accept-invite" element={<AcceptInvite />} />
+          <Route
+            path="/"
+            element={
+              session ? (
+                <Navigate to="/app" replace />
+              ) : (
+                <>
+                  <LandingPage onOpenLogin={openLogin} onOpenSignup={openSignup} />
+                  <LoginModal
+                    isOpen={loginOpen}
+                    onClose={closeModals}
+                    onSwitchToSignup={switchToSignup}
+                  />
+                  <SignupModal
+                    isOpen={signupOpen}
+                    onClose={closeModals}
+                    onSwitchToLogin={switchToLogin}
+                  />
+                </>
+              )
+            }
+          />
+          <Route
+            path="/app"
+            element={
+              <ProtectedRoute session={session}>
+                <CasesProvider>
+                  <DocumentsProvider>
+                    <HearingsProvider>
+                      <AppShell />
+                    </HearingsProvider>
+                  </DocumentsProvider>
+                </CasesProvider>
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="cases" element={<CaseList />} />
+            <Route path="cases/new" element={<NewCase />} />
+            <Route path="cases/:id" element={<CaseDetail />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }
