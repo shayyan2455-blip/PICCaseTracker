@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
+import { setOrgId } from '../../lib/org'
 
 export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
   const [email, setEmail] = useState('')
@@ -64,9 +65,15 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     setLoading(false)
     if (memberError) {
       setError(memberError.message)
-    } else {
-      onClose()
+      return
     }
+
+    setOrgId(org.id)
+    await supabase.auth.updateUser({
+      data: { default_organization_id: org.id },
+    })
+
+    onClose()
   }
 
   function resetForm() {

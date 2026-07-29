@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import ThemeToggle from '../ui/ThemeToggle'
 import { supabase } from '../../lib/supabaseClient'
+import { clearOrgId } from '../../lib/org'
 
 export default function TopBar() {
   const navigate = useNavigate()
 
   async function handleLogout() {
+    clearOrgId()
     await supabase.auth.signOut()
     navigate('/')
   }
