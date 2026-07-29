@@ -1,15 +1,21 @@
 import { supabase } from './supabaseClient'
 
-let cachedOrgId = null
-
 export async function getOrgId() {
-  if (cachedOrgId) return cachedOrgId
-  const { data, error } = await supabase.rpc('default_organization_id')
-  if (error || !data) return null
-  cachedOrgId = data
-  return data
-}
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
 
-export function clearOrgCache() {
-  cachedOrgId = null
+  const { data, error } = await supabase
+    .from('members')
+    .select('organization_id')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    console.error('getOrgId query error:', error.message)
+    return null
+  }
+
+  return data?.organization_id || null
 }
