@@ -49,8 +49,8 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
 
       let rawText = ''
 
-      if (ext === 'pdf' || ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
-        setOcrStatus('Extracting text from document...')
+      if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
+        setOcrStatus('Extracting text from image...')
         const result = await Tesseract.recognize(file, 'eng', {
           logger: (m) => {
             if (m.status === 'recognizing text') {
@@ -60,16 +60,12 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
           },
         })
         rawText = result.data.text
-      } else if (ext === 'docx') {
-        setOcrStatus('DOCX text extraction not supported — using filename only')
-        await new Promise((r) => setTimeout(r, 800))
+      } else {
+        setOcrStatus('Automatic text extraction not supported for this file type — using filename only')
+        await new Promise((r) => setTimeout(r, 500))
       }
 
       const result = parseNoticeOrder(rawText, file.name)
-
-      if (!result.document_type || result.document_type === 'rti_request' || result.document_type === 'appeal_to_pic') {
-        result.document_type = docType
-      }
       result.document_type = docType
 
       setExtraction(result)
