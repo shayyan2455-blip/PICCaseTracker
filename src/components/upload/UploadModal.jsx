@@ -76,7 +76,8 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
       setOcrStatus('')
     } catch (e) {
       console.error('OCR failed:', e)
-      setUploadError('Text extraction failed: ' + e.message + ' — you can still upload manually')
+      const errMsg = e?.message || (typeof e === 'string' ? e : 'unknown error')
+      setUploadError('Text extraction failed: ' + errMsg + ' — you can still upload manually')
       const fallback = parseNoticeOrder('', file.name)
       fallback.document_type = docType
       setExtraction(fallback)
