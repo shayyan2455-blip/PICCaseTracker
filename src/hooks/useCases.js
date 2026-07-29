@@ -44,9 +44,32 @@ export function useCases() {
     return data
   }, [])
 
+  const updateCase = useCallback(async (id, updates) => {
+    const { data, error: err } = await supabase
+      .from('cases')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (err) throw new Error(err.message)
+    setCases((prev) => prev.map((c) => (c.id === id ? data : c)))
+    return data
+  }, [])
+
+  const deleteCase = useCallback(async (id) => {
+    const { error: err } = await supabase
+      .from('cases')
+      .delete()
+      .eq('id', id)
+
+    if (err) throw new Error(err.message)
+    setCases((prev) => prev.filter((c) => c.id !== id))
+  }, [])
+
   const getCase = useCallback((id) => {
     return cases.find((c) => c.id === id) || null
   }, [cases])
 
-  return { cases, loading, error, addCase, getCase, refresh: loadCases }
+  return { cases, loading, error, addCase, updateCase, deleteCase, getCase, refresh: loadCases }
 }

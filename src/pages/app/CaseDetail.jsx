@@ -7,13 +7,18 @@ import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import DocumentTimeline from '../../components/cases/DocumentTimeline'
 import UploadModal from '../../components/upload/UploadModal'
 
+const statusOptions = ['draft', 'rti_filed', 'appeal_filed', 'under_notice', 'disposed', 'closed']
+
 export default function CaseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getCase } = useCasesContext()
+  const { getCase, updateCase, deleteCase } = useCasesContext()
   const { addDocument, deleteDocument } = useDocumentsContext()
-  const { addHearing } = useHearingsContext()
+  const { addHearing, getHearingsForCase, resolveHearing } = useHearingsContext()
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState({})
+  const [deleting, setDeleting] = useState(false)
   const c = getCase(id)
 
   async function handleUpload(doc) {
@@ -34,6 +39,38 @@ export default function CaseDetail() {
     await deleteDocument(docId)
   }
 
+  function startEdit() {
+    setEditForm({
+      title: c.title,
+      case_number: c.case_number || '',
+      applicant_name: c.applicant_name,
+      applicant_address: c.applicant_address || '',
+      public_body: c.public_body,
+      status: c.status,
+    })
+    setEditing(true)
+  }
+
+  async function saveEdit() {
+    await updateCase(id, editForm)
+    setEditing(false)
+  }
+
+  async function handleDelete() {
+    if (!window.confirm('Delete this case and all associated documents and hearings?')) return
+    setDeleting(true)
+    try {
+      await deleteCase(id)
+      navigate('/app/cases')
+    } catch {
+      setDeleting(false)
+    }
+  }
+
+  async function handleResolve(hearingId, outcome) {
+    await resolveHearing(hearingId, outcome)
+  }
+
   if (!c) {
     return (
       <div className="mx-auto max-w-2xl pt-20 text-center">
@@ -46,6 +83,17 @@ export default function CaseDetail() {
         </Link>
       </div>
     )
+  }
+
+  const hearings = getHearingsForCase(id)
+  const pendingHearings = hearings.filter((h) => h.outcome === 'pending')
+
+  function inputStyle() {
+    return {
+      backgroundColor: 'var(--second-bg-color)',
+      borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+      color: 'var(--text-color)',
+    }
   }
 
   return (
@@ -63,15 +111,44 @@ export default function CaseDetail() {
       </button>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold sm:text-3xl">{c.title}</h1>
-          {c.case_number && (
+        <div className="flex-1">
+          {editing ? (
+            <input
+              value={editForm.title}
+              onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+              className="w-full rounded-lg border px-3 py-2 text-xl font-bold outline-none"
+              style={inputStyle()}
+            />
+          ) : (
+            <h1 className="text-2xl font-bold sm:text-3xl">{c.title}</h1>
+          )}
+          {!editing && c.case_number && (
             <p className="mt-1 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
               Appeal No. {c.case_number}
             </p>
           )}
         </div>
-        <CaseStatusBadge status={c.status} />
+        <div className="flex items-center gap-2">
+          <CaseStatusBadge status={c.status} />
+          {!editing && (
+            <button onClick={startEdit} className="btn-ghost p-2" title="Edit case">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+          )}
+          {!editing && (
+            <button onClick={handleDelete} disabled={deleting} className="btn-ghost p-2" title="Delete case" style={{ color: '#ef4444' }}>
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -79,18 +156,45 @@ export default function CaseDetail() {
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
             Applicant
           </p>
-          <p className="mt-1 font-medium">{c.applicant_name}</p>
-          {c.applicant_address && (
+          {editing ? (
+            <input
+              value={editForm.applicant_name}
+              onChange={(e) => setEditForm({ ...editForm, applicant_name: e.target.value })}
+              className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+              style={inputStyle()}
+            />
+          ) : (
+            <p className="mt-1 font-medium">{c.applicant_name}</p>
+          )}
+          {!editing && c.applicant_address && (
             <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
               {c.applicant_address}
             </p>
+          )}
+          {editing && (
+            <input
+              value={editForm.applicant_address}
+              onChange={(e) => setEditForm({ ...editForm, applicant_address: e.target.value })}
+              placeholder="Address"
+              className="mt-2 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+              style={inputStyle()}
+            />
           )}
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
             Public Body
           </p>
-          <p className="mt-1 font-medium">{c.public_body}</p>
+          {editing ? (
+            <input
+              value={editForm.public_body}
+              onChange={(e) => setEditForm({ ...editForm, public_body: e.target.value })}
+              className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+              style={inputStyle()}
+            />
+          ) : (
+            <p className="mt-1 font-medium">{c.public_body}</p>
+          )}
         </div>
         <div>
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
@@ -106,6 +210,75 @@ export default function CaseDetail() {
           )}
         </div>
       </div>
+
+      {editing && (
+        <div className="mt-4 flex gap-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium">Status</label>
+            <select
+              value={editForm.status}
+              onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}
+              className="rounded-lg border px-3 py-1.5 text-sm outline-none"
+              style={inputStyle()}
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium">Case No.</label>
+            <input
+              value={editForm.case_number}
+              onChange={(e) => setEditForm({ ...editForm, case_number: e.target.value })}
+              className="rounded-lg border px-3 py-1.5 text-sm outline-none"
+              style={inputStyle()}
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <button onClick={saveEdit} className="btn-primary text-sm px-4 py-1.5">Save</button>
+            <button onClick={() => setEditing(false)} className="btn-ghost text-sm px-4 py-1.5">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {pendingHearings.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-3 text-lg font-bold">Pending Deadlines</h2>
+          <div className="flex flex-col gap-2">
+            {pendingHearings.map((h) => (
+              <div
+                key={h.id}
+                className="flex items-center justify-between rounded-lg border px-4 py-3"
+                style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}
+              >
+                <div>
+                  <p className="text-sm font-medium">
+                    Due: {new Date(h.due_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                  {h.notes && <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>{h.notes}</p>}
+                </div>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => handleResolve(h.id, 'resolved')}
+                    className="rounded px-2.5 py-1 text-xs font-medium text-green-500"
+                    style={{ backgroundColor: 'color-mix(in srgb, #22c55e 12%, transparent)' }}
+                  >
+                    Resolved
+                  </button>
+                  <button
+                    onClick={() => handleResolve(h.id, 'adjourned')}
+                    className="rounded px-2.5 py-1 text-xs font-medium"
+                    style={{ backgroundColor: 'color-mix(in srgb, var(--text-color) 8%, transparent)', color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}
+                  >
+                    Adjourned
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="mt-10">
         <div className="flex items-center justify-between mb-4">

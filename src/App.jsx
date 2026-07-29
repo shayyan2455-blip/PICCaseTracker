@@ -11,6 +11,7 @@ import CaseList from './pages/app/CaseList'
 import CaseDetail from './pages/app/CaseDetail'
 import NewCase from './pages/app/NewCase'
 import Settings from './pages/app/Settings'
+import AcceptInvite from './pages/AcceptInvite'
 import { CasesProvider } from './lib/CasesContext'
 import { DocumentsProvider } from './lib/DocumentsContext'
 import { HearingsProvider } from './lib/HearingsContext'
@@ -77,6 +78,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/accept-invite" element={<AcceptInvite />} />
         <Route
           path="/"
           element={
