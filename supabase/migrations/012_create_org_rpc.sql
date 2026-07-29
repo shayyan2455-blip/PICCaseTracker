@@ -18,6 +18,9 @@ begin
 end;
 $$;
 
+grant execute on function create_organization to anon;
+grant execute on function create_organization to authenticated;
+
 -- security definer RPC to get the user's first org from members
 -- Bypasses RLS — the caller just needs to know any valid user_id
 create or replace function get_default_org_id(for_user_id uuid)
@@ -31,3 +34,6 @@ as $$
   order by created_at asc
   limit 1;
 $$;
+
+grant execute on function get_default_org_id to anon;
+grant execute on function get_default_org_id to authenticated;
