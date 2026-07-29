@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import Tesseract from 'tesseract.js'
 import { supabase } from '../../lib/supabaseClient'
 import { getOrgId } from '../../lib/org'
 import { parseNoticeOrder } from '../../extraction/parseNoticeOrder'
@@ -23,6 +24,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
   const [extraction, setExtraction] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [ocrStatus, setOcrStatus] = useState('')
   const fileRef = useRef(null)
 
   if (!isOpen) return null
@@ -33,17 +35,53 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
     setFile(f)
     setExtraction(null)
     setUploadError('')
+    setOcrStatus('')
   }
 
-  function handleAnalyze() {
+  async function handleAnalyze() {
     if (!file) return
-    const rawText = ''
-    const result = parseNoticeOrder(rawText, file.name)
-    if (!result.document_type || result.document_type === 'rti_request' || result.document_type === 'appeal_to_pic') {
+    setUploadError('')
+    setOcrStatus('Running OCR...')
+    setExtraction(null)
+
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase()
+
+      let rawText = ''
+
+      if (ext === 'pdf' || ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
+        setOcrStatus('Extracting text from document...')
+        const result = await Tesseract.recognize(file, 'eng', {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              const pct = Math.round(m.progress * 100)
+              setOcrStatus(`Reading text... ${pct}%`)
+            }
+          },
+        })
+        rawText = result.data.text
+      } else if (ext === 'docx') {
+        setOcrStatus('DOCX text extraction not supported — using filename only')
+        await new Promise((r) => setTimeout(r, 800))
+      }
+
+      const result = parseNoticeOrder(rawText, file.name)
+
+      if (!result.document_type || result.document_type === 'rti_request' || result.document_type === 'appeal_to_pic') {
+        result.document_type = docType
+      }
       result.document_type = docType
+
+      setExtraction(result)
+      setOcrStatus('')
+    } catch (e) {
+      console.error('OCR failed:', e)
+      setUploadError('Text extraction failed: ' + e.message + ' — you can still upload manually')
+      const fallback = parseNoticeOrder('', file.name)
+      fallback.document_type = docType
+      setExtraction(fallback)
+      setOcrStatus('')
     }
-    result.document_type = docType
-    setExtraction(result)
   }
 
   async function handleConfirm() {
@@ -92,6 +130,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
     setFile(null)
     setExtraction(null)
     setUploadError('')
+    setOcrStatus('')
     setDocType('rti_request')
     if (fileRef.current) fileRef.current.value = ''
     onClose()
@@ -141,7 +180,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium">File (PDF, DOCX, JPG, PNG)</label>
+            <label className="mb-1.5 block text-sm font-medium">File (PDF, JPG, PNG)</label>
             <div
               className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors hover:opacity-80"
               style={{
@@ -176,7 +215,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
               <input
                 ref={fileRef}
                 type="file"
-                accept=".pdf,.docx,.jpg,.png"
+                accept=".pdf,.jpg,.jpeg,.png"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -187,7 +226,16 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
             <div className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{uploadError}</div>
           )}
 
-          {file && !extraction && !uploading && (
+          {ocrStatus && (
+            <div className="flex items-center justify-center gap-2 py-3 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              {ocrStatus}
+            </div>
+          )}
+
+          {file && !extraction && !ocrStatus && (
             <button onClick={handleAnalyze} className="btn-primary w-full text-sm py-2.5">
               Analyze Document
             </button>

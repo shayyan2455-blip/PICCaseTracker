@@ -12,6 +12,7 @@ const typeOptions = [
 ]
 
 export default function ExtractionConfirmForm({ extraction, onConfirm, onEdit, onCancel }) {
+  const showEdit = typeof onEdit === 'function'
   return (
     <div className="rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)', backgroundColor: 'color-mix(in srgb, var(--main-color) 5%, transparent)' }}>
       <div className="flex items-center gap-2 mb-4">
@@ -69,9 +70,11 @@ export default function ExtractionConfirmForm({ extraction, onConfirm, onEdit, o
       )}
 
       <div className="mt-4 flex gap-2">
-        <button onClick={onEdit} className="btn-ghost flex-1 text-xs py-2">
-          Edit
-        </button>
+        {showEdit && (
+          <button onClick={onEdit} className="btn-ghost flex-1 text-xs py-2">
+            Edit
+          </button>
+        )}
         <button onClick={onConfirm} className="btn-primary flex-1 text-xs py-2">
           Confirm
         </button>
