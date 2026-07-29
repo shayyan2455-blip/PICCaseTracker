@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { supabase } from '../../lib/supabaseClient'
+
 export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -13,7 +15,6 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
     setError('')
     setLoading(true)
 
-    const { supabase } = await import('../../lib/supabaseClient')
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
 
     setLoading(false)

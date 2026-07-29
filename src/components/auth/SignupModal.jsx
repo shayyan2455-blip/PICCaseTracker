@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { supabase } from '../../lib/supabaseClient'
 
 export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
   const [email, setEmail] = useState('')
@@ -16,7 +17,6 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     setError('')
     setLoading(true)
 
-    const { supabase } = await import('../../lib/supabaseClient')
     const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
@@ -40,8 +40,6 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     if (!orgName.trim()) return
     setError('')
     setLoading(true)
-
-    const { supabase } = await import('../../lib/supabaseClient')
 
     const { data: org, error: orgError } = await supabase
       .from('organizations')
