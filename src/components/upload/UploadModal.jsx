@@ -1,4 +1,6 @@
 import { useState, useRef } from 'react'
+import { supabase } from '../../lib/supabaseClient'
+import { getOrgId } from '../../lib/org'
 import { parseNoticeOrder } from '../../extraction/parseNoticeOrder'
 import ExtractionConfirmForm from './ExtractionConfirmForm'
 
@@ -19,7 +21,8 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
   const [docType, setDocType] = useState('rti_request')
   const [file, setFile] = useState(null)
   const [extraction, setExtraction] = useState(null)
-  const [editing, setEditing] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
   const fileRef = useRef(null)
 
   if (!isOpen) return null
@@ -29,41 +32,66 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
     if (!f) return
     setFile(f)
     setExtraction(null)
-    setEditing(false)
+    setUploadError('')
   }
 
   function handleAnalyze() {
     if (!file) return
-
-    const rawText = '' // In production, run Tesseract.js here
+    const rawText = ''
     const result = parseNoticeOrder(rawText, file.name)
-
     if (!result.document_type || result.document_type === 'rti_request' || result.document_type === 'appeal_to_pic') {
       result.document_type = docType
     }
-
     result.document_type = docType
-
     setExtraction(result)
   }
 
-  function handleConfirm() {
-    onUpload({
-      case_id: caseId,
-      document_type: docType,
-      file_name: file.name,
-      extracted_date: extraction?.due_date || null,
-      extraction_source: 'digital',
-      extraction_confidence: extraction?.confidence || 'high',
-      raw_text: null,
-    })
-    resetAndClose()
+  async function handleConfirm() {
+    if (!file) return
+    setUploadError('')
+    setUploading(true)
+
+    try {
+      const orgId = await getOrgId()
+      if (!orgId) throw new Error('No organization found')
+
+      const ext = file.name.split('.').pop()
+      const storagePath = `${orgId}/${crypto.randomUUID()}-${file.name}`
+
+      const { error: uploadErr } = await supabase.storage
+        .from('documents')
+        .upload(storagePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+        })
+
+      if (uploadErr) throw new Error(uploadErr.message)
+
+      const { data: { user } } = await supabase.auth.getUser()
+
+      onUpload({
+        case_id: caseId,
+        document_type: docType,
+        file_path: storagePath,
+        file_name: file.name,
+        uploaded_by: user?.id,
+        extracted_date: extraction?.due_date || null,
+        extraction_source: 'digital',
+        extraction_confidence: extraction?.confidence || 'high',
+        raw_text: null,
+      })
+      resetAndClose()
+    } catch (e) {
+      setUploadError(e.message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   function resetAndClose() {
     setFile(null)
     setExtraction(null)
-    setEditing(false)
+    setUploadError('')
     setDocType('rti_request')
     if (fileRef.current) fileRef.current.value = ''
     onClose()
@@ -155,17 +183,29 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
             </div>
           </div>
 
-          {file && !extraction && (
+          {uploadError && (
+            <div className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{uploadError}</div>
+          )}
+
+          {file && !extraction && !uploading && (
             <button onClick={handleAnalyze} className="btn-primary w-full text-sm py-2.5">
               Analyze Document
             </button>
           )}
 
-          {extraction && (
+          {uploading && (
+            <div className="flex items-center justify-center gap-2 py-3 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Uploading...
+            </div>
+          )}
+
+          {extraction && !uploading && (
             <ExtractionConfirmForm
               extraction={extraction}
               onConfirm={handleConfirm}
-              onEdit={() => setEditing(!editing)}
               onCancel={resetAndClose}
             />
           )}

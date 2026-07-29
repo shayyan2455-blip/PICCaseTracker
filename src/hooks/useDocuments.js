@@ -55,5 +55,26 @@ export function useDocuments() {
     setDocs((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)))
   }, [])
 
-  return { docs, loading, error, getDocumentsForCase, addDocument, updateDocument, refresh: loadDocs }
+  const deleteDocument = useCallback(async (id) => {
+    const doc = docs.find((d) => d.id === id)
+    if (!doc) throw new Error('Document not found')
+
+    if (doc.file_path) {
+      const { error: storageErr } = await supabase.storage
+        .from('documents')
+        .remove([doc.file_path])
+
+      if (storageErr) throw new Error(storageErr.message)
+    }
+
+    const { error: err } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', id)
+
+    if (err) throw new Error(err.message)
+    setDocs((prev) => prev.filter((d) => d.id !== id))
+  }, [docs])
+
+  return { docs, loading, error, getDocumentsForCase, addDocument, updateDocument, deleteDocument, refresh: loadDocs }
 }

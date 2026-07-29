@@ -11,7 +11,7 @@ export default function CaseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { getCase } = useCasesContext()
-  const { addDocument } = useDocumentsContext()
+  const { addDocument, deleteDocument } = useDocumentsContext()
   const { addHearing } = useHearingsContext()
   const [uploadOpen, setUploadOpen] = useState(false)
   const c = getCase(id)
@@ -28,6 +28,10 @@ export default function CaseDetail() {
         notes: null,
       })
     }
+  }
+
+  async function handleDeleteDoc(docId) {
+    await deleteDocument(docId)
   }
 
   if (!c) {
@@ -110,7 +114,7 @@ export default function CaseDetail() {
             + Upload
           </button>
         </div>
-        <DocumentTimeline caseId={id} />
+        <DocumentTimeline caseId={id} onDeleteDoc={handleDeleteDoc} />
       </div>
 
       <UploadModal

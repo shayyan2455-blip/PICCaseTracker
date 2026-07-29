@@ -1,7 +1,7 @@
 import { useDocumentsContext } from '../../lib/DocumentsContext'
 import DocumentCard from './DocumentCard'
 
-export default function DocumentTimeline({ caseId }) {
+export default function DocumentTimeline({ caseId, onDeleteDoc }) {
   const { getDocumentsForCase } = useDocumentsContext()
   const docs = getDocumentsForCase(caseId)
 
@@ -39,7 +39,7 @@ export default function DocumentTimeline({ caseId }) {
               borderColor: 'var(--main-color)',
             }}
           />
-          <DocumentCard doc={doc} />
+          <DocumentCard doc={doc} onDelete={onDeleteDoc} />
         </div>
       ))}
     </div>

@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { supabase } from '../../lib/supabaseClient'
+
 const typeLabels = {
   rti_request: 'RTI Request',
   appeal_to_pic: 'Appeal to PIC',
@@ -23,9 +26,28 @@ const typeIcons = {
   ),
 }
 
-export default function DocumentCard({ doc }) {
+export default function DocumentCard({ doc, onDelete }) {
   const label = typeLabels[doc.document_type] || doc.document_type
   const icon = typeIcons[doc.document_type] || typeIcons.default
+  const [downloading, setDownloading] = useState(false)
+
+  async function handleDownload() {
+    if (!doc.file_path || downloading) return
+    setDownloading(true)
+    try {
+      const { data, error } = await supabase.storage
+        .from('documents')
+        .createSignedUrl(doc.file_path, 60)
+
+      if (error) throw new Error(error.message)
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank')
+      }
+    } catch (e) {
+      console.error('Download failed:', e)
+    }
+    setDownloading(false)
+  }
 
   return (
     <div className="flex items-start gap-4 rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}>
@@ -58,6 +80,38 @@ export default function DocumentCard({ doc }) {
         <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 40%, transparent)' }}>
           {new Date(doc.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </p>
+        <div className="mt-2 flex gap-2">
+          {doc.file_path && (
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors hover:opacity-80"
+              style={{ backgroundColor: 'color-mix(in srgb, var(--main-color) 12%, transparent)', color: 'var(--main-color)' }}
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              {downloading ? 'Opening...' : 'Open'}
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => { if (window.confirm('Delete this document?')) onDelete(doc.id) }}
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors hover:opacity-80"
+              style={{ backgroundColor: 'color-mix(in srgb, #ef4444 12%, transparent)', color: '#ef4444' }}
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+              </svg>
+              Delete
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
