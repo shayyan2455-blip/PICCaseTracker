@@ -1,5 +1,7 @@
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { supabase } from '../../lib/supabaseClient'
+import { setOrgId, getOrgId } from '../../lib/org'
 import { useCasesContext } from '../../lib/CasesContext'
 import { useHearingsContext } from '../../lib/HearingsContext'
 import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
@@ -10,8 +12,73 @@ import OverdueList from '../../components/dashboard/OverdueList'
 export default function Dashboard() {
   const { cases } = useCasesContext()
   const { getPendingCounts } = useHearingsContext()
+  const [orgState, setOrgState] = useState('loading')
+  const [orgName, setOrgName] = useState('')
+  const [orgLoading, setOrgLoading] = useState(false)
+  const [orgError, setOrgError] = useState('')
+  const [orgDebug, setOrgDebug] = useState([])
 
   const { dueToday, dueThisWeek, overdue, totalPending } = getPendingCounts()
+
+  useEffect(() => {
+    getOrgId().then((id) => setOrgState(id ? 'ready' : 'no_org'))
+  }, [])
+
+  async function handleCreateOrg(e) {
+    e.preventDefault()
+    if (!orgName.trim()) return
+    setOrgError('')
+    setOrgDebug([])
+    setOrgLoading(true)
+
+    function dbg(msg) { console.log('[dashboard-org]', msg); setOrgDebug(p => [...p, msg]) }
+
+    dbg('Looking up current user...')
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setOrgError('Not logged in'); setOrgLoading(false); return }
+    dbg('User: ' + user.id)
+
+    dbg('Calling RPC create_organization...')
+    const { data: rpcResult, error: rpcError } = await supabase.rpc(
+      'create_organization',
+      { org_name: orgName.trim(), user_id: user.id }
+    )
+    dbg('RPC: result=' + JSON.stringify(rpcResult) + ' error=' + JSON.stringify(rpcError))
+
+    if (rpcResult) {
+      dbg('SUCCESS! Org created: ' + rpcResult)
+      setOrgId(rpcResult)
+      dbg('Saved to localStorage')
+      await supabase.auth.updateUser({ data: { default_organization_id: rpcResult } })
+      dbg('Saved to user_metadata')
+      dbg('Reloading...')
+      window.location.reload()
+      return
+    }
+
+    dbg('RPC failed. Trying direct inserts...')
+    const { data: org, error: orgError2 } = await supabase
+      .from('organizations')
+      .insert({ name: orgName.trim() })
+      .select()
+      .single()
+    dbg('Org insert: ' + (orgError2 ? 'ERROR: ' + orgError2.message : 'OK id=' + org?.id))
+
+    if (orgError2) { setOrgError('Org error: ' + orgError2.message); setOrgLoading(false); return }
+
+    const { error: memError } = await supabase
+      .from('members')
+      .insert({ organization_id: org.id, user_id: user.id, role: 'owner' })
+    dbg('Member insert: ' + (memError ? 'ERROR: ' + memError.message : 'OK'))
+
+    if (memError) { setOrgError('Member error: ' + memError.message); setOrgLoading(false); return }
+
+    dbg('SUCCESS via direct insert!')
+    setOrgId(org.id)
+    await supabase.auth.updateUser({ data: { default_organization_id: org.id } })
+    dbg('Reloading...')
+    window.location.reload()
+  }
 
   const activeCases = useMemo(() => cases.filter((c) => !['disposed', 'closed'].includes(c.status)), [cases])
   const recentCases = useMemo(() => [...cases].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 5), [cases])
@@ -22,6 +89,65 @@ export default function Dashboard() {
     dueThisWeek.map((h) => ({ ...h, case_title: cases.find((c) => c.id === h.case_id)?.title })), [dueThisWeek, cases])
   const enrichedOverdue = useMemo(() =>
     overdue.map((h) => ({ ...h, case_title: cases.find((c) => c.id === h.case_id)?.title })), [overdue, cases])
+
+  if (orgState === 'loading') {
+    return (
+      <div className="mx-auto max-w-6xl pt-4">
+        <h1 className="text-2xl font-bold sm:text-3xl">Dashboard</h1>
+        <p className="mt-4">Loading...</p>
+      </div>
+    )
+  }
+
+  if (orgState === 'no_org') {
+    return (
+      <div className="mx-auto max-w-md pt-20">
+        <div className="card">
+          <div className="mb-4 inline-flex rounded-xl p-3" style={{ backgroundColor: 'color-mix(in srgb, var(--main-color) 15%, transparent)', color: 'var(--main-color)' }}>
+            <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold">Set up your firm</h2>
+          <p className="mt-2 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
+            Create an organization to start tracking cases
+          </p>
+
+          {orgError && (
+            <div className="mt-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{orgError}</div>
+          )}
+
+          {orgDebug.length > 0 && (
+            <div className="mt-4 max-h-40 overflow-y-auto rounded-lg bg-gray-900/10 px-3 py-2 text-xs font-mono text-left" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
+              {orgDebug.map((line, i) => <div key={i}>{line}</div>)}
+            </div>
+          )}
+
+          <form onSubmit={handleCreateOrg} className="mt-6 flex flex-col gap-4">
+            <input
+              type="text"
+              value={orgName}
+              onChange={(e) => setOrgName(e.target.value)}
+              placeholder="e.g. Shahid & Associates"
+              className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none text-center"
+              style={{
+                backgroundColor: 'var(--second-bg-color)',
+                borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+                color: 'var(--text-color)',
+              }}
+              required
+            />
+            <button type="submit" disabled={orgLoading} className="btn-primary w-full text-sm py-2.5">
+              {orgLoading ? 'Creating...' : 'Create Organization'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-6xl pt-4">
