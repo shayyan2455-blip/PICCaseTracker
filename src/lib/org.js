@@ -47,15 +47,30 @@ export async function getOrgId() {
 
   if (error) {
     console.error('[getOrgId] members query error:', error.message)
+  }
+
+  if (data) {
+    console.log('[getOrgId] found in members table:', data.organization_id)
+    setOrgId(data.organization_id)
+    return data.organization_id
+  }
+
+  console.log('[getOrgId] trying RPC fallback...')
+  const { data: rpcResult, error: rpcError } = await supabase.rpc('get_default_org_id', {
+    for_user_id: user.id,
+  })
+
+  if (rpcError) {
+    console.error('[getOrgId] RPC error:', rpcError.message)
     return null
   }
 
-  if (!data) {
-    console.error('[getOrgId] no member row found for user', user.id)
-    return null
+  if (rpcResult) {
+    console.log('[getOrgId] found via RPC:', rpcResult)
+    setOrgId(rpcResult)
+    return rpcResult
   }
 
-  console.log('[getOrgId] found in members table:', data.organization_id)
-  setOrgId(data.organization_id)
-  return data.organization_id
+  console.error('[getOrgId] no org found via any method for user', user.id)
+  return null
 }

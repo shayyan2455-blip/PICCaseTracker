@@ -53,37 +53,43 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     try {
       console.log('[signup] starting org creation, userIdRef:', userIdRef.current)
 
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert({ name: orgName.trim() })
-        .select()
-        .single()
+      // Try the RPC first — it creates org + member atomically, bypassing RLS
+      let orgId = null
+      let memberError = null
 
-      if (orgError) {
-        console.error('[signup] org insert error:', JSON.stringify(orgError))
-        setError('Org error: ' + orgError.message)
-        setLoading(false)
-        return
-      }
-      console.log('[signup] org created:', org)
-
-      // Check auth state right before member insert
-      const { data: { user: currentUser } } = await supabase.auth.getUser()
-      console.log('[signup] auth.getUser before member insert:', currentUser?.id)
-      console.log('[signup] userIdRef matches auth user?', currentUser?.id === userIdRef.current)
-
-      const memberPayload = {
-        organization_id: org.id,
+      const { data: rpcData, error: rpcError } = await supabase.rpc('create_organization', {
+        org_name: orgName.trim(),
         user_id: userIdRef.current,
-        role: 'owner',
+      })
+      console.log('[signup] RPC create_organization:', { rpcData, rpcError: rpcError ? JSON.stringify(rpcError) : null })
+
+      if (rpcData) {
+        orgId = rpcData
+        console.log('[signup] RPC created org:', orgId)
+      } else {
+        // Fallback: direct inserts (RPC function might not exist yet)
+        console.log('[signup] RPC failed, falling back to direct inserts')
+        const { data: org, error: orgError } = await supabase
+          .from('organizations')
+          .insert({ name: orgName.trim() })
+          .select()
+          .single()
+
+        if (orgError) {
+          console.error('[signup] org insert error:', JSON.stringify(orgError))
+          setError('Org error: ' + orgError.message)
+          setLoading(false)
+          return
+        }
+        console.log('[signup] org created via direct insert:', org.id)
+
+        const { error: mErr } = await supabase
+          .from('members')
+          .insert({ organization_id: org.id, user_id: userIdRef.current, role: 'owner' })
+        memberError = mErr
+        console.log('[signup] direct member insert:', memberError ? JSON.stringify(memberError) : 'success')
+        orgId = org.id
       }
-
-      const { data: memberData, error: memberError } = await supabase
-        .from('members')
-        .insert(memberPayload)
-        .select()
-
-      console.log('[signup] member insert response:', { memberData, memberError: memberError ? JSON.stringify(memberError) : null })
 
       setLoading(false)
       if (memberError) {
@@ -92,11 +98,11 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
       }
 
       console.log('[signup] saving org id to localStorage and metadata...')
-      setOrgId(org.id)
+      setOrgId(orgId)
       console.log('[signup] localStorage after setOrgId:', localStorage.getItem('pic_org_id'))
 
       const updateRes = await supabase.auth.updateUser({
-        data: { default_organization_id: org.id },
+        data: { default_organization_id: orgId },
       })
       console.log('[signup] updateUser done:', updateRes.error ? JSON.stringify(updateRes.error) : 'success')
 
