@@ -90,11 +90,16 @@ async function sendDailyReminders() {
   for (const orgId of Object.keys(byOrg)) {
     const { data: members } = await supabaseAdmin
       .from('members')
-      .select('user_id, auth_users!inner(email)')
+      .select('user_id')
       .eq('organization_id', orgId)
       .in('role', ['owner', 'lawyer'])
 
-    memberMap[orgId] = (members || []).map(m => m.auth_users?.email).filter(Boolean)
+    const emails = []
+    for (const m of members || []) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(m.user_id)
+      if (u?.user?.email) emails.push(u.user.email)
+    }
+    memberMap[orgId] = emails
   }
 
   // Send emails
