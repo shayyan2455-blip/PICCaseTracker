@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [orgName, setOrgName] = useState('')
-  const [step, setStep] = useState('account') // 'account' | 'org'
+  const [step, setStep] = useState('account')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const userIdRef = useRef(null)
 
   if (!isOpen) return null
 
@@ -29,6 +30,7 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     }
 
     if (data?.user) {
+      userIdRef.current = data.user.id
       setStep('org')
     }
   }
@@ -57,13 +59,15 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
       .from('members')
       .insert({
         organization_id: org.id,
-        user_id: (await supabase.auth.getUser()).data.user.id,
+        user_id: userIdRef.current,
         role: 'owner',
       })
 
     setLoading(false)
     if (memberError) {
       setError(memberError.message)
+    } else {
+      onClose()
     }
   }
 
@@ -73,6 +77,7 @@ export default function SignupModal({ isOpen, onClose, onSwitchToLogin }) {
     setOrgName('')
     setStep('account')
     setError('')
+    userIdRef.current = null
   }
 
   function handleSwitchToLogin() {

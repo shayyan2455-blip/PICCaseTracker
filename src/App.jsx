@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react'
-import { getTheme, initTheme } from './lib/theme'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { initTheme } from './lib/theme'
+import { supabase } from './lib/supabaseClient'
 import LandingPage from './pages/LandingPage'
 import LoginModal from './components/auth/LoginModal'
 import SignupModal from './components/auth/SignupModal'
-import { supabase } from './lib/supabaseClient'
+import AppShell from './components/layout/AppShell'
+import Dashboard from './pages/app/Dashboard'
+
+function ProtectedRoute({ session, children }) {
+  if (!session) return <Navigate to="/" replace />
+  return children
+}
 
 export default function App() {
   const [loginOpen, setLoginOpen] = useState(false)
@@ -26,13 +34,6 @@ export default function App() {
     return () => listener?.subscription.unsubscribe()
   }, [])
 
-  // User is logged in — redirect to /app
-  useEffect(() => {
-    if (session && !loading) {
-      window.location.href = '/app'
-    }
-  }, [session, loading])
-
   function openLogin() {
     setSignupOpen(false)
     setLoginOpen(true)
@@ -53,6 +54,11 @@ export default function App() {
     setSignupOpen(true)
   }
 
+  function closeModals() {
+    setLoginOpen(false)
+    setSignupOpen(false)
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg">
@@ -62,18 +68,41 @@ export default function App() {
   }
 
   return (
-    <>
-      <LandingPage onOpenLogin={openLogin} onOpenSignup={openSignup} />
-      <LoginModal
-        isOpen={loginOpen}
-        onClose={() => setLoginOpen(false)}
-        onSwitchToSignup={switchToSignup}
-      />
-      <SignupModal
-        isOpen={signupOpen}
-        onClose={() => setSignupOpen(false)}
-        onSwitchToLogin={switchToLogin}
-      />
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            session ? (
+              <Navigate to="/app" replace />
+            ) : (
+              <>
+                <LandingPage onOpenLogin={openLogin} onOpenSignup={openSignup} />
+                <LoginModal
+                  isOpen={loginOpen}
+                  onClose={closeModals}
+                  onSwitchToSignup={switchToSignup}
+                />
+                <SignupModal
+                  isOpen={signupOpen}
+                  onClose={closeModals}
+                  onSwitchToLogin={switchToLogin}
+                />
+              </>
+            )
+          }
+        />
+        <Route
+          path="/app"
+          element={
+            <ProtectedRoute session={session}>
+              <AppShell />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Dashboard />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }
