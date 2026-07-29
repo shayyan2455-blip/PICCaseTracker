@@ -30,9 +30,12 @@ export function useCases() {
     const orgId = await getOrgId()
     if (!orgId) throw new Error('No organization found')
 
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('Not authenticated')
+
     const { data, error: err } = await supabase
       .from('cases')
-      .insert({ ...newCase, organization_id: orgId })
+      .insert({ ...newCase, organization_id: orgId, created_by: user.id })
       .select()
       .single()
 
