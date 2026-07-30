@@ -30,6 +30,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
   const [uploadError, setUploadError] = useState('')
   const [ocrStatus, setOcrStatus] = useState('')
   const [documentDate, setDocumentDate] = useState('')
+  const [rtiFilingDate, setRtiFilingDate] = useState('')
   const fileRef = useRef(null)
 
   if (!isOpen) return null
@@ -132,6 +133,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
         extraction_source: 'digital',
         extraction_confidence: extraction?.confidence || 'high',
         raw_text: null,
+        rti_filing_date: rtiFilingDate || null,
       })
       resetAndClose()
     } catch (e) {
@@ -148,6 +150,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
     setOcrStatus('')
     setDocType(typeOptions[0].value)
     setDocumentDate('')
+    setRtiFilingDate('')
     if (fileRef.current) fileRef.current.value = ''
     onClose()
   }
@@ -213,6 +216,22 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
               />
               <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
                 Use this date to distinguish multiple {typeOptions.find((o) => o.value === docType)?.label} entries
+              </p>
+            </div>
+          )}
+
+          {docType === 'rti_request' && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">RTI Filing Date</label>
+              <input
+                type="date"
+                value={rtiFilingDate}
+                onChange={(e) => setRtiFilingDate(e.target.value)}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none"
+                style={inputStyle()}
+              />
+              <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+                A reminder to file the appeal will be created 10 days after this date
               </p>
             </div>
           )}

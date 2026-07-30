@@ -6,6 +6,7 @@ import { useHearingsContext } from '../../lib/HearingsContext'
 import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import DocumentTimeline from '../../components/cases/DocumentTimeline'
 import UploadModal from '../../components/upload/UploadModal'
+import SubmitAppealModal from '../../components/upload/SubmitAppealModal'
 
 const statusOptions = ['draft', 'rti_filed', 'appeal_filed', 'under_notice', 'disposed', 'closed']
 
@@ -16,6 +17,7 @@ export default function CaseDetail() {
   const { addDocument, deleteDocument, getDocumentsForCase } = useDocumentsContext()
   const { addHearing, getHearingsForCase, resolveHearing } = useHearingsContext()
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [submitAppealOpen, setSubmitAppealOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [deleting, setDeleting] = useState(false)
@@ -25,6 +27,20 @@ export default function CaseDetail() {
 
   async function handleUpload(doc) {
     const newDoc = await addDocument(doc)
+
+    if (doc.document_type === 'rti_request' && doc.rti_filing_date) {
+      const appealDue = new Date(doc.rti_filing_date)
+      appealDue.setDate(appealDue.getDate() + 10)
+      await addHearing({
+        case_id: id,
+        document_id: newDoc.id,
+        due_date: appealDue.toISOString().split('T')[0],
+        outcome: 'pending',
+        next_date: null,
+        notes: 'File appeal within 10 days of RTI filing',
+      })
+    }
+
     if (doc.extracted_date && newDoc) {
       await addHearing({
         case_id: id,
@@ -35,6 +51,7 @@ export default function CaseDetail() {
         notes: null,
       })
     }
+
     if (doc.document_type === 'order') {
       await updateCase(id, { status: 'closed', closed_at: new Date().toISOString() })
     }
@@ -288,9 +305,14 @@ export default function CaseDetail() {
       <div className="mt-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">Documents</h2>
-          <button onClick={() => setUploadOpen(true)} className="btn-primary text-sm px-4 py-2">
-            + Upload
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setSubmitAppealOpen(true)} className="btn-primary text-sm px-4 py-2">
+              Submit Appeal
+            </button>
+            <button onClick={() => setUploadOpen(true)} className="btn-ghost text-sm px-4 py-2">
+              + Upload
+            </button>
+          </div>
         </div>
         <DocumentTimeline caseId={id} onDeleteDoc={handleDeleteDoc} />
       </div>
@@ -301,6 +323,13 @@ export default function CaseDetail() {
         caseId={id}
         onUpload={handleUpload}
         existingDocs={caseDocs}
+      />
+
+      <SubmitAppealModal
+        isOpen={submitAppealOpen}
+        onClose={() => setSubmitAppealOpen(false)}
+        caseId={id}
+        onUpload={handleUpload}
       />
     </div>
   )
