@@ -20,6 +20,10 @@ function getTransporter() {
   })
 }
 
+function generateOtp() {
+  return String(Math.floor(10000000 + Math.random() * 90000000))
+}
+
 async function sendTestEmail(to) {
   const transporter = getTransporter()
   await transporter.sendMail({
@@ -33,6 +37,105 @@ async function sendTestEmail(to) {
       <p style="color:#999;font-size:12px">PIC Case Tracker</p>
     </div>`,
   })
+}
+
+async function handleSendOtp(email) {
+  // Check if email exists in auth.users
+  const { data: users } = await supabaseAdmin.auth.admin.listUsers()
+  const user = users?.users?.find((u) => u.email === email)
+  if (!user) return { error: 'No account found with this email address' }
+
+  // Invalidate any previous unused OTPs for this email
+  await supabaseAdmin
+    .from('password_resets')
+    .update({ used: true })
+    .eq('email', email)
+    .eq('used', false)
+
+  // Generate and store OTP
+  const otp = generateOtp()
+  const expiresAt = new Date(Date.now() + 2 * 60 * 1000).toISOString()
+
+  const { error: insertErr } = await supabaseAdmin
+    .from('password_resets')
+    .insert({ email, otp, expires_at: expiresAt })
+
+  if (insertErr) return { error: 'Failed to generate OTP' }
+
+  // Send email
+  const transporter = getTransporter()
+  try {
+    await transporter.sendMail({
+      from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
+      to: email,
+      subject: 'PIC Case Tracker — Password Reset OTP',
+      html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+        <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+        <p style="color:#666;margin:0 0 4px">Your OTP for password reset is:</p>
+        <div style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;margin:24px 0;color:#ea580c">${otp}</div>
+        <p style="color:#999;font-size:13px">This OTP expires in 2 minutes. If you did not request this, please ignore this email.</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
+        <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+      </div>`,
+    })
+  } catch {
+    return { error: 'Failed to send OTP email. Check SMTP configuration.' }
+  }
+
+  return { success: true }
+}
+
+async function handleVerifyOtp(email, otp) {
+  const { data, error } = await supabaseAdmin
+    .from('password_resets')
+    .select('*')
+    .eq('email', email)
+    .eq('otp', otp)
+    .eq('used', false)
+    .gte('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error || !data) return { error: 'Invalid or expired OTP' }
+  return { success: true, resetId: data.id }
+}
+
+async function handleResetPassword(email, otp, newPassword) {
+  // Verify OTP again
+  const { data: record, error: fetchErr } = await supabaseAdmin
+    .from('password_resets')
+    .select('*')
+    .eq('email', email)
+    .eq('otp', otp)
+    .eq('used', false)
+    .gte('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (fetchErr || !record) return { error: 'Invalid or expired OTP' }
+
+  // Find user by email
+  const { data: users } = await supabaseAdmin.auth.admin.listUsers()
+  const user = users?.users?.find((u) => u.email === email)
+  if (!user) return { error: 'User not found' }
+
+  // Update password via admin API
+  const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
+    user.id,
+    { password: newPassword }
+  )
+
+  if (updateErr) return { error: 'Failed to update password' }
+
+  // Mark OTP as used
+  await supabaseAdmin
+    .from('password_resets')
+    .update({ used: true })
+    .eq('id', record.id)
+
+  return { success: true }
 }
 
 async function sendDailyReminders() {
@@ -187,6 +290,28 @@ export default async function handler(req, res) {
       if (!to) return res.status(400).json({ error: 'Missing recipient email' })
       await sendTestEmail(to)
       return res.status(200).json({ success: true, elapsed_ms: Date.now() - start })
+    }
+
+    if (type === 'send-otp') {
+      const { email } = req.body || {}
+      if (!email) return res.status(400).json({ error: 'Missing email' })
+      const result = await handleSendOtp(email)
+      return res.status(result.error ? 400 : 200).json({ ...result, elapsed_ms: Date.now() - start })
+    }
+
+    if (type === 'verify-otp') {
+      const { email, otp } = req.body || {}
+      if (!email || !otp) return res.status(400).json({ error: 'Missing email or OTP' })
+      const result = await handleVerifyOtp(email, otp)
+      return res.status(result.error ? 400 : 200).json({ ...result, elapsed_ms: Date.now() - start })
+    }
+
+    if (type === 'reset-password') {
+      const { email, otp, password } = req.body || {}
+      if (!email || !otp || !password) return res.status(400).json({ error: 'Missing required fields' })
+      if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
+      const result = await handleResetPassword(email, otp, password)
+      return res.status(result.error ? 400 : 200).json({ ...result, elapsed_ms: Date.now() - start })
     }
 
     return res.status(400).json({ error: 'Invalid request' })
