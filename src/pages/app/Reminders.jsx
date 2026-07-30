@@ -10,6 +10,8 @@ export default function Reminders() {
   const { hearings, loading } = useHearingsContext()
   const [logs, setLogs] = useState([])
   const [logsLoading, setLogsLoading] = useState(true)
+  const [sendingReminders, setSendingReminders] = useState(false)
+  const [sendResult, setSendResult] = useState('')
 
   useEffect(() => {
     getOrgId().then((orgId) => {
@@ -26,6 +28,27 @@ export default function Reminders() {
         })
     })
   }, [])
+
+  async function handleSendReminders() {
+    setSendingReminders(true)
+    setSendResult('')
+    try {
+      const res = await fetch('/api/send-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'daily' }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setSendResult(`Sent ${data.sent} reminder email${data.sent !== 1 ? 's' : ''}`)
+      } else {
+        setSendResult('Failed: ' + (data.error || 'Unknown error'))
+      }
+    } catch (e) {
+      setSendResult('Failed: ' + e.message)
+    }
+    setSendingReminders(false)
+  }
 
   const { dueToday, dueThisWeek, dueLater } = useMemo(() => {
     const today = new Date()
@@ -75,9 +98,23 @@ export default function Reminders() {
             Upcoming deadlines and sent reminder history
           </p>
         </div>
-        <Link to="/app/settings" className="btn-primary text-sm px-4 py-2">
-          Settings
-        </Link>
+        <div className="flex gap-2">
+          {sendResult && (
+            <span className="self-center text-xs font-medium" style={{ color: sendResult.startsWith('Sent') ? 'var(--main-color)' : '#ef4444' }}>
+              {sendResult}
+            </span>
+          )}
+          <button
+            onClick={handleSendReminders}
+            disabled={sendingReminders}
+            className="btn-ghost text-sm px-3 py-2"
+          >
+            {sendingReminders ? 'Sending...' : 'Send Reminders Now'}
+          </button>
+          <Link to="/app/settings" className="btn-primary text-sm px-4 py-2">
+            Settings
+          </Link>
+        </div>
       </div>
 
       {loading ? (

@@ -49,8 +49,9 @@ export default function AcceptInvite() {
       })
 
     if (memberErr) {
+      console.error('Accept invite error:', memberErr)
       setStatus('error')
-      setMessage('Failed to join: ' + memberErr.message)
+      setMessage('Failed to join the organization. The invite may have expired or already been used.')
       return
     }
 

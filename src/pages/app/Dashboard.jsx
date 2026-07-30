@@ -39,7 +39,7 @@ export default function Dashboard() {
         owner_id: user.id,
       })
 
-      if (rpcError) { setOrgError(rpcError.message); setOrgLoading(false); return }
+      if (rpcError) { console.error('Create org RPC error:', rpcError); setOrgError('Failed to create organization. Please try again.'); setOrgLoading(false); return }
 
       setOrgId(rpcResult)
       await supabase.auth.updateUser({ data: { default_organization_id: rpcResult } })

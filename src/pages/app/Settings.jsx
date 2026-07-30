@@ -53,7 +53,7 @@ export default function Settings() {
         enabled: true,
       }, { onConflict: 'organization_id' })
 
-    if (err) { setError(err.message); return }
+    if (err) { console.error('Save prefs error:', err); setError('Failed to save preferences. Please try again.'); return }
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
@@ -79,7 +79,7 @@ export default function Settings() {
       .select()
       .single()
 
-    if (err) { setInviteError(err.message); setInviting(false); return }
+    if (err) { console.error('Invite error:', err); setInviteError('Failed to send invite. Please try again.'); setInviting(false); return }
 
     const link = `${window.location.origin}/accept-invite?token=${data.token}`
     setInviteLink(link)

@@ -33,6 +33,8 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
   const [rtiFilingDate, setRtiFilingDate] = useState('')
   const fileRef = useRef(null)
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024
+
   if (!isOpen) return null
 
   const usedTypes = new Set(existingDocs.map((d) => d.document_type))
@@ -44,6 +46,11 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
   function handleFileChange(e) {
     const f = e.target.files?.[0]
     if (!f) return
+    if (f.size > MAX_FILE_SIZE) {
+      setUploadError(`File is too large (${(f.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 10 MB.`)
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
     setFile(f)
     setExtraction(null)
     setUploadError('')

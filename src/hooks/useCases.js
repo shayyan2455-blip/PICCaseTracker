@@ -58,6 +58,18 @@ export function useCases() {
   }, [])
 
   const deleteCase = useCallback(async (id) => {
+    const { data: docs } = await supabase
+      .from('documents')
+      .select('file_path')
+      .eq('case_id', id)
+
+    if (docs && docs.length > 0) {
+      const paths = docs.map((d) => d.file_path).filter(Boolean)
+      if (paths.length > 0) {
+        await supabase.storage.from('documents').remove(paths)
+      }
+    }
+
     const { error: err } = await supabase
       .from('cases')
       .delete()

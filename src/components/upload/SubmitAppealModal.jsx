@@ -15,10 +15,19 @@ export default function SubmitAppealModal({ isOpen, onClose, caseId, onUpload })
 
   if (!isOpen) return null
 
+  const MAX_FILE_SIZE = 10 * 1024 * 1024
+
   async function handleSubmit() {
     if (!rtiFile || !receiptFile || !appealFile) {
       setUploadError('Please select all three files: RTI, Receipt, and Appeal')
       return
+    }
+
+    for (const f of [rtiFile, receiptFile, appealFile]) {
+      if (f.size > MAX_FILE_SIZE) {
+        setUploadError(`"${f.name}" is too large (${(f.size / 1024 / 1024).toFixed(1)} MB). Maximum size is 10 MB.`)
+        return
+      }
     }
 
     setUploadError('')

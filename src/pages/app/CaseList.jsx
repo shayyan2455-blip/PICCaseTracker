@@ -5,10 +5,13 @@ import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import CaseCard from '../../components/cases/CaseCard'
 import { TableSkeleton } from '../../components/ui/Skeleton'
 
+const PAGE_SIZE = 20
+
 export default function CaseList() {
   const { cases, loading } = useCasesContext()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [page, setPage] = useState(0)
 
   const filtered = useMemo(() => {
     return cases.filter((c) => {
@@ -24,6 +27,20 @@ export default function CaseList() {
       return matchesSearch && matchesStatus
     })
   }, [cases, search, statusFilter])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const safePage = Math.min(page, totalPages - 1)
+  const paginated = filtered.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+
+  function handleSearchChange(val) {
+    setSearch(val)
+    setPage(0)
+  }
+
+  function handleStatusFilter(val) {
+    setStatusFilter(val)
+    setPage(0)
+  }
 
   if (loading) {
     return (
@@ -62,7 +79,7 @@ export default function CaseList() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder="Search by title, applicant, or case number..."
             className="w-full rounded-lg border py-2.5 pl-10 pr-4 text-sm outline-none transition-colors"
             style={{
@@ -78,7 +95,7 @@ export default function CaseList() {
         {statuses.map((s) => (
           <button
             key={s}
-            onClick={() => setStatusFilter(s)}
+            onClick={() => handleStatusFilter(s)}
             className="rounded-full px-3 py-1.5 text-xs font-medium transition-colors"
             style={{
               backgroundColor: statusFilter === s ? 'var(--main-color)' : 'color-mix(in srgb, var(--text-color) 8%, transparent)',
@@ -121,7 +138,7 @@ export default function CaseList() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((c) => (
+                  {paginated.map((c) => (
                     <tr
                       key={c.id}
                       className="cursor-pointer border-t transition-colors hover:opacity-80"
@@ -147,9 +164,47 @@ export default function CaseList() {
 
           {/* Mobile card list */}
           <div className="mt-6 flex flex-col gap-4 sm:hidden">
-            {filtered.map((c) => (
+            {paginated.map((c) => (
               <CaseCard key={c.id} c={c} />
             ))}
+          </div>
+
+          {/* Pagination */}
+          <div className="mt-4 flex items-center justify-between text-sm">
+            <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+              Showing {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}
+            </span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-30"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--text-color) 8%, transparent)' }}
+              >
+                Prev
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setPage(i)}
+                  className="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
+                  style={{
+                    backgroundColor: i === safePage ? 'var(--main-color)' : 'color-mix(in srgb, var(--text-color) 8%, transparent)',
+                    color: i === safePage ? 'white' : 'color-mix(in srgb, var(--text-color) 60%, transparent)',
+                  }}
+                >
+                  {i + 1}
+                </button>
+              ))}
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                disabled={safePage >= totalPages - 1}
+                className="rounded-lg px-3 py-1.5 text-sm font-medium disabled:opacity-30"
+                style={{ backgroundColor: 'color-mix(in srgb, var(--text-color) 8%, transparent)' }}
+              >
+                Next
+              </button>
+            </div>
           </div>
         </>
       )}

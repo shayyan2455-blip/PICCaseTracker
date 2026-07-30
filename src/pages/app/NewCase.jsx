@@ -32,7 +32,8 @@ export default function NewCase() {
       await addCase(data)
       navigate('/app/cases')
     } catch (e) {
-      setSubmitError(e.message)
+      console.error('Create case error:', e)
+      setSubmitError('Failed to create case. Please try again.')
     }
   }
 

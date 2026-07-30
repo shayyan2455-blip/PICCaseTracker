@@ -7,6 +7,8 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [resetMode, setResetMode] = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   if (!isOpen) return null
 
@@ -22,6 +24,23 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
       setError(authError.message)
     } else {
       onClose()
+    }
+  }
+
+  async function handleResetPassword(e) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/app',
+    })
+
+    setLoading(false)
+    if (resetError) {
+      setError(resetError.message)
+    } else {
+      setResetSent(true)
     }
   }
 
@@ -45,58 +64,102 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
           Log in to your PIC Tracker account
         </p>
 
-        {error && (
+        {error && !resetMode && (
           <div className="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label htmlFor="login-email" className="mb-1 block text-sm font-medium">Email</label>
-            <input
-              id="login-email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-colors"
-              style={{
-                backgroundColor: 'var(--second-bg-color)',
-                borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
-                color: 'var(--text-color)',
-              }}
-              placeholder="you@lawfirm.com"
-            />
-          </div>
+        {resetMode ? (
+          <>
+            {resetSent ? (
+              <div className="rounded-lg px-4 py-3 text-sm" style={{ backgroundColor: 'color-mix(in srgb, var(--main-color) 12%, transparent)', color: 'var(--main-color)' }}>
+                Check your email for the password reset link.
+              </div>
+            ) : (
+              <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
+                {error && <div className="rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
+                <div>
+                  <label htmlFor="reset-email" className="mb-1 block text-sm font-medium">Email</label>
+                  <input
+                    id="reset-email"
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-colors"
+                    style={{
+                      backgroundColor: 'var(--second-bg-color)',
+                      borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+                      color: 'var(--text-color)',
+                    }}
+                    placeholder="you@lawfirm.com"
+                  />
+                </div>
+                <button type="submit" disabled={loading} className="btn-primary w-full text-sm">
+                  {loading ? 'Sending...' : 'Send Reset Link'}
+                </button>
+                <button type="button" onClick={() => { setResetMode(false); setError(''); setResetSent(false) }} className="text-sm underline underline-offset-2" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
+                  Back to login
+                </button>
+              </form>
+            )}
+          </>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label htmlFor="login-email" className="mb-1 block text-sm font-medium">Email</label>
+              <input
+                id="login-email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-colors"
+                style={{
+                  backgroundColor: 'var(--second-bg-color)',
+                  borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+                  color: 'var(--text-color)',
+                }}
+                placeholder="you@lawfirm.com"
+              />
+            </div>
 
-          <div>
-            <label htmlFor="login-password" className="mb-1 block text-sm font-medium">Password</label>
-            <input
-              id="login-password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-colors"
-              style={{
-                backgroundColor: 'var(--second-bg-color)',
-                borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
-                color: 'var(--text-color)',
-              }}
-              placeholder="••••••••"
-            />
-          </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="login-password" className="block text-sm font-medium">Password</label>
+                <button type="button" onClick={() => setResetMode(true)} className="text-xs underline underline-offset-2" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+                  Forgot?
+                </button>
+              </div>
+              <input
+                id="login-password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none transition-colors"
+                style={{
+                  backgroundColor: 'var(--second-bg-color)',
+                  borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+                  color: 'var(--text-color)',
+                }}
+                placeholder="••••••••"
+              />
+            </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full text-sm">
-            {loading ? 'Logging in...' : 'Log in'}
-          </button>
-        </form>
+            <button type="submit" disabled={loading} className="btn-primary w-full text-sm">
+              {loading ? 'Logging in...' : 'Log in'}
+            </button>
+          </form>
+        )}
 
-        <p className="mt-5 text-center text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
-          Don't have an account?{' '}
-          <button onClick={onSwitchToSignup} className="font-semibold underline underline-offset-2" style={{ color: 'var(--main-color)' }}>
-            Sign up
-          </button>
-        </p>
+        {!resetMode && (
+          <p className="mt-5 text-center text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
+            Don't have an account?{' '}
+            <button onClick={onSwitchToSignup} className="font-semibold underline underline-offset-2" style={{ color: 'var(--main-color)' }}>
+              Sign up
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )
