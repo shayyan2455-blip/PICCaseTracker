@@ -13,6 +13,11 @@ export function getTheme() {
 export function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme)
   localStorage.setItem(STORAGE_KEY, theme)
+
+  const link = document.querySelector('link[rel="icon"]')
+  if (link) {
+    link.href = theme === 'light' ? '/favicon-light.svg' : '/favicon.svg'
+  }
 }
 
 export function toggleTheme() {
