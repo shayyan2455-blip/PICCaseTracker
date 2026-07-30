@@ -153,6 +153,7 @@ export default function SubmitAppealModal({ isOpen, onClose, caseId, onUpload })
                 backgroundColor: 'var(--second-bg-color)',
                 borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
                 color: 'var(--text-color)',
+                colorScheme: 'dark',
               }}
             />
             <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>

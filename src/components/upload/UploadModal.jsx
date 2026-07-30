@@ -212,7 +212,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
                 value={documentDate}
                 onChange={(e) => setDocumentDate(e.target.value)}
                 className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none"
-                style={inputStyle()}
+                style={{ ...inputStyle(), colorScheme: 'dark' }}
               />
               <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
                 Use this date to distinguish multiple {typeOptions.find((o) => o.value === docType)?.label} entries
@@ -228,7 +228,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
                 value={rtiFilingDate}
                 onChange={(e) => setRtiFilingDate(e.target.value)}
                 className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none"
-                style={inputStyle()}
+                style={{ ...inputStyle(), colorScheme: 'dark' }}
               />
               <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
                 A reminder to file the appeal will be created 10 days after this date
