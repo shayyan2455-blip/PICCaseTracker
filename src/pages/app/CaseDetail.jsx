@@ -13,13 +13,15 @@ export default function CaseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { getCase, updateCase, deleteCase } = useCasesContext()
-  const { addDocument, deleteDocument } = useDocumentsContext()
+  const { addDocument, deleteDocument, getDocumentsForCase } = useDocumentsContext()
   const { addHearing, getHearingsForCase, resolveHearing } = useHearingsContext()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [deleting, setDeleting] = useState(false)
   const c = getCase(id)
+
+  const caseDocs = getDocumentsForCase ? getDocumentsForCase(id) : []
 
   async function handleUpload(doc) {
     const newDoc = await addDocument(doc)
@@ -32,6 +34,9 @@ export default function CaseDetail() {
         next_date: null,
         notes: null,
       })
+    }
+    if (doc.document_type === 'order') {
+      await updateCase(id, { status: 'closed', closed_at: new Date().toISOString() })
     }
   }
 
@@ -295,6 +300,7 @@ export default function CaseDetail() {
         onClose={() => setUploadOpen(false)}
         caseId={id}
         onUpload={handleUpload}
+        existingDocs={caseDocs}
       />
     </div>
   )

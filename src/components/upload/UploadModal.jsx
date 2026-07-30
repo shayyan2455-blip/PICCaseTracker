@@ -5,29 +5,40 @@ import { getOrgId } from '../../lib/org'
 import { parseNoticeOrder } from '../../extraction/parseNoticeOrder'
 import ExtractionConfirmForm from './ExtractionConfirmForm'
 
+const singleUploadTypes = ['rti_request', 'receipt', 'appeal_to_pic', 'first_notice', 'second_notice', 'final_notice', 'order']
+const multiDateTypes = ['opposing_comments', 'rejoinder', 'our_reply']
+
 const typeOptions = [
   { value: 'rti_request', label: 'RTI Request' },
+  { value: 'receipt', label: 'Receipt' },
   { value: 'appeal_to_pic', label: 'Appeal to PIC' },
   { value: 'first_notice', label: 'First Notice' },
   { value: 'second_notice', label: 'Second Notice' },
   { value: 'final_notice', label: 'Final Notice' },
-  { value: 'opposing_comments', label: 'Opposing Comments' },
-  { value: 'rejoinder', label: 'Rejoinder' },
-  { value: 'our_reply', label: 'Our Reply' },
+  { value: 'opposing_comments', label: 'Opposing Comments (Date)' },
+  { value: 'rejoinder', label: 'Rejoinder (Date)' },
+  { value: 'our_reply', label: 'Our Reply (Date)' },
   { value: 'order', label: 'Order' },
   { value: 'other', label: 'Other' },
 ]
 
-export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
-  const [docType, setDocType] = useState('rti_request')
+export default function UploadModal({ isOpen, onClose, caseId, onUpload, existingDocs = [] }) {
+  const [docType, setDocType] = useState(typeOptions[0].value)
   const [file, setFile] = useState(null)
   const [extraction, setExtraction] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [ocrStatus, setOcrStatus] = useState('')
+  const [documentDate, setDocumentDate] = useState('')
   const fileRef = useRef(null)
 
   if (!isOpen) return null
+
+  const usedTypes = new Set(existingDocs.map((d) => d.document_type))
+  const availableOptions = typeOptions.filter((o) => {
+    if (singleUploadTypes.includes(o.value) && usedTypes.has(o.value)) return false
+    return true
+  })
 
   function handleFileChange(e) {
     const f = e.target.files?.[0]
@@ -68,6 +79,10 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
       const result = parseNoticeOrder(rawText, file.name)
       result.document_type = docType
 
+      if (multiDateTypes.includes(docType) && documentDate) {
+        result.due_date = documentDate
+      }
+
       setExtraction(result)
       setOcrStatus('')
     } catch (e) {
@@ -76,6 +91,9 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
       setUploadError('Text extraction failed: ' + errMsg + ' — you can still upload manually')
       const fallback = parseNoticeOrder('', file.name)
       fallback.document_type = docType
+      if (multiDateTypes.includes(docType) && documentDate) {
+        fallback.due_date = documentDate
+      }
       setExtraction(fallback)
       setOcrStatus('')
     }
@@ -128,7 +146,8 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
     setExtraction(null)
     setUploadError('')
     setOcrStatus('')
-    setDocType('rti_request')
+    setDocType(typeOptions[0].value)
+    setDocumentDate('')
     if (fileRef.current) fileRef.current.value = ''
     onClose()
   }
@@ -166,15 +185,37 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload }) {
             <label className="mb-1.5 block text-sm font-medium">Document Type</label>
             <select
               value={docType}
-              onChange={(e) => setDocType(e.target.value)}
+              onChange={(e) => {
+                setDocType(e.target.value)
+                setExtraction(null)
+              }}
               className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none"
               style={inputStyle()}
             >
-              {typeOptions.map((o) => (
+              {availableOptions.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
+            {singleUploadTypes.includes(docType) && usedTypes.has(docType) && (
+              <p className="mt-1 text-xs text-red-500">Already uploaded — not available</p>
+            )}
           </div>
+
+          {multiDateTypes.includes(docType) && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Document Date</label>
+              <input
+                type="date"
+                value={documentDate}
+                onChange={(e) => setDocumentDate(e.target.value)}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none"
+                style={inputStyle()}
+              />
+              <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+                Use this date to distinguish multiple {typeOptions.find((o) => o.value === docType)?.label} entries
+              </p>
+            </div>
+          )}
 
           <div>
             <label className="mb-1.5 block text-sm font-medium">File (PDF, JPG, PNG)</label>
