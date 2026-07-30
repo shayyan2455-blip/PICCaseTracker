@@ -45,7 +45,8 @@ export default function Dashboard() {
       await supabase.auth.updateUser({ data: { default_organization_id: rpcResult } })
       window.location.reload()
     } catch (e) {
-      setOrgError(e.message)
+      console.error('Create org error:', e)
+      setOrgError('Failed to create organization. Please try again.')
       setOrgLoading(false)
     }
   }

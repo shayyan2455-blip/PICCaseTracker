@@ -117,7 +117,8 @@ export default function Settings() {
 
       setSent(true)
     } catch (e) {
-      setError(e.message)
+      console.error('Test reminder error:', e)
+      setError('Failed to send test email. Make sure the API is configured correctly.')
     }
     setSending(false)
   }
