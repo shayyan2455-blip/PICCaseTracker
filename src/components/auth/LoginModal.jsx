@@ -13,8 +13,6 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
   const timerRef = useRef(null)
   const otpRefs = useRef([])
 
-  if (!isOpen) return null
-
   useEffect(() => {
     if (step === 'forgot_otp') {
       setCountdown(120)
@@ -33,6 +31,8 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
       setError('OTP has expired. Please request a new one.')
     }
   }, [countdown, step])
+
+  if (!isOpen) return null
 
   function resetForm() {
     setEmail('')
