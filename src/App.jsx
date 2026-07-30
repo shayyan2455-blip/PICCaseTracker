@@ -13,6 +13,7 @@ import CaseList from './pages/app/CaseList'
 import CaseDetail from './pages/app/CaseDetail'
 import NewCase from './pages/app/NewCase'
 import Settings from './pages/app/Settings'
+import Reminders from './pages/app/Reminders'
 import AcceptInvite from './pages/AcceptInvite'
 import { CasesProvider } from './lib/CasesContext'
 import { DocumentsProvider } from './lib/DocumentsContext'
@@ -122,6 +123,7 @@ export default function App() {
             <Route path="cases" element={<CaseList />} />
             <Route path="cases/new" element={<NewCase />} />
             <Route path="cases/:id" element={<CaseDetail />} />
+            <Route path="reminders" element={<Reminders />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<NotFound />} />
