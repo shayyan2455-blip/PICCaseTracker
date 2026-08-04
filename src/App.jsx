@@ -7,6 +7,7 @@ import LandingPage from './pages/LandingPage'
 import NotFound from './pages/NotFound'
 import LoginModal from './components/auth/LoginModal'
 import SignupModal from './components/auth/SignupModal'
+import ChangePasswordModal from './components/auth/ChangePasswordModal'
 import AppShell from './components/layout/AppShell'
 import Dashboard from './pages/app/Dashboard'
 import CaseList from './pages/app/CaseList'
@@ -14,7 +15,6 @@ import CaseDetail from './pages/app/CaseDetail'
 import NewCase from './pages/app/NewCase'
 import Settings from './pages/app/Settings'
 import Reminders from './pages/app/Reminders'
-import AcceptInvite from './pages/AcceptInvite'
 import { CasesProvider } from './lib/CasesContext'
 import { DocumentsProvider } from './lib/DocumentsContext'
 import { HearingsProvider } from './lib/HearingsContext'
@@ -29,17 +29,20 @@ export default function App() {
   const [signupOpen, setSignupOpen] = useState(false)
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [mustChangePassword, setMustChangePassword] = useState(false)
 
   useEffect(() => {
     initTheme()
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
+      setMustChangePassword(session?.user?.user_metadata?.must_change_password === true)
       setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
+      setMustChangePassword(session?.user?.user_metadata?.must_change_password === true)
     })
 
     return () => listener?.subscription.unsubscribe()
@@ -82,7 +85,6 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
-          <Route path="/accept-invite" element={<AcceptInvite />} />
           <Route
             path="/"
             element={
@@ -128,6 +130,7 @@ export default function App() {
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
+        {session && mustChangePassword && <ChangePasswordModal />}
       </BrowserRouter>
     </ErrorBoundary>
   )

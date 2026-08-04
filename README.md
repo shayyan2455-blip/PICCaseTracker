@@ -15,7 +15,7 @@ Multi-lawyer web application for tracking RTI (Right to Information) appeals bef
 - **Reminders Page** — Dedicated page showing upcoming hearing deadlines (Due Today / This Week / Later) plus sent reminder email history
 - **Email Reminders** — Daily email summaries of upcoming deadlines via Gmail SMTP (Vercel cron job), configurable per-org (days-before, send-at time)
 - **Multi-lawyer Organization** — Create or join a law firm with role-based access (owner/lawyer/clerk)
-- **Invite System** — Token-based invite links to add members to your organization
+- **Invite System** — Owners invite members by email; the invitee receives a temporary password via email and must set a new password on first login
 - **Settings** — Manage reminder preferences, test email delivery, view org members, send invites
 - **Dark/Light Theme** — Persistent theme toggle with favicon swap (orange accent in dark, green accent in light)
 - **Error Boundary & 404** — Global error catcher and catch-all route
@@ -135,7 +135,6 @@ src/
 ├── pages/
 │   ├── LandingPage.jsx           — Marketing landing page (hero, features, how it works)
 │   ├── NotFound.jsx              — 404 page
-│   ├── AcceptInvite.jsx          — Token-based invite acceptance
 │   └── app/
 │       ├── Dashboard.jsx         — Deadline overview with stat cards
 │       ├── CaseList.jsx          — Searchable, filterable case table
@@ -146,7 +145,7 @@ src/
 ├── components/
 │   ├── ErrorBoundary.jsx         — Global error boundary
 │   ├── auth/
-│   │   ├── LoginModal.jsx        — Email/password login
+│   │   ├── ChangePasswordModal.jsx — Forced password change on first login
 │   │   └── SignupModal.jsx       — Signup with auto org creation
 │   ├── cases/
 │   │   ├── CaseCard.jsx          — Mobile case card

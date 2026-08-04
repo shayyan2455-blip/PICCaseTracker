@@ -24,6 +24,107 @@ function generateOtp() {
   return String(Math.floor(10000000 + Math.random() * 90000000))
 }
 
+function generateTempPassword() {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ'
+  const lower = 'abcdefghjkmnpqrstuvwxyz'
+  const digits = '23456789'
+  const chars = upper + lower + digits
+  let pw = upper[Math.floor(Math.random() * upper.length)]
+  pw += digits[Math.floor(Math.random() * digits.length)]
+  for (let i = 0; i < 8; i++) pw += chars[Math.floor(Math.random() * chars.length)]
+  return pw.split('').sort(() => Math.random() - 0.5).join('')
+}
+
+async function handleInviteUser({ email, role, orgId, inviterUserId }) {
+  const normalizedEmail = (email || '').trim().toLowerCase()
+  if (!normalizedEmail) return { error: 'Missing email' }
+  if (!['lawyer', 'clerk'].includes(role)) return { error: 'Invalid role' }
+  if (!orgId || !inviterUserId) return { error: 'Missing organization or user' }
+
+  // Only the owner can invite
+  const { data: inviter } = await supabaseAdmin
+    .from('members')
+    .select('role')
+    .eq('organization_id', orgId)
+    .eq('user_id', inviterUserId)
+    .maybeSingle()
+
+  if (!inviter || inviter.role !== 'owner') {
+    return { error: 'Only the organization owner can invite members' }
+  }
+
+  // Does the account already exist?
+  const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+  const existing = users?.users?.find((u) => u.email === normalizedEmail)
+
+  if (existing) {
+    const { data: mem } = await supabaseAdmin
+      .from('members')
+      .select('id')
+      .eq('organization_id', orgId)
+      .eq('user_id', existing.id)
+      .maybeSingle()
+
+    if (mem) return { error: 'This user is already a member of your organization' }
+
+    const { error: mErr } = await supabaseAdmin
+      .from('members')
+      .insert({ organization_id: orgId, user_id: existing.id, role })
+
+    if (mErr) return { error: 'Failed to add member' }
+
+    const transporter = getTransporter()
+    await transporter.sendMail({
+      from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
+      to: normalizedEmail,
+      subject: 'You were added to a PIC Case Tracker organization',
+      html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+        <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+        <p style="color:#666;margin:0 0 24px">You have been added to an organization as <strong>${role}</strong>. Log in with your existing account to access it.</p>
+        <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
+        <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+      </div>`,
+    })
+
+    return { success: true, existing: true }
+  }
+
+  // Create a new account with a temporary password
+  const tempPassword = generateTempPassword()
+  const { data: created, error: cErr } = await supabaseAdmin.auth.admin.createUser({
+    email: normalizedEmail,
+    password: tempPassword,
+    email_confirm: true,
+    user_metadata: { must_change_password: true },
+  })
+
+  if (cErr) return { error: cErr.message }
+
+  const { error: mErr2 } = await supabaseAdmin
+    .from('members')
+    .insert({ organization_id: orgId, user_id: created.user.id, role })
+
+  if (mErr2) return { error: 'Failed to add member' }
+
+  const transporter = getTransporter()
+  await transporter.sendMail({
+    from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
+    to: normalizedEmail,
+    subject: 'Your PIC Case Tracker account',
+    html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+      <p style="color:#666;margin:0 0 4px">An account has been created for you as <strong>${role}</strong>. Log in with:</p>
+      <p style="margin:8px 0 4px"><strong>Email:</strong> ${normalizedEmail}</p>
+      <p style="margin:0 0 8px"><strong>Temporary password:</strong> <span style="font-size:18px;font-weight:700;color:#ea580c">${tempPassword}</span></p>
+      <p style="color:#666;margin:0 0 24px">You will be asked to set a new password after your first login.</p>
+      <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
+      <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+    </div>`,
+  })
+
+  return { success: true, existing: false }
+}
+
 async function sendTestEmail(to) {
   const transporter = getTransporter()
   await transporter.sendMail({
@@ -311,6 +412,12 @@ export default async function handler(req, res) {
       if (!email || !otp || !password) return res.status(400).json({ error: 'Missing required fields' })
       if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' })
       const result = await handleResetPassword(email, otp, password)
+      return res.status(result.error ? 400 : 200).json({ ...result, elapsed_ms: Date.now() - start })
+    }
+
+    if (type === 'invite-user') {
+      const { email, role, orgId, inviterUserId } = req.body || {}
+      const result = await handleInviteUser({ email, role, orgId, inviterUserId })
       return res.status(result.error ? 400 : 200).json({ ...result, elapsed_ms: Date.now() - start })
     }
 
