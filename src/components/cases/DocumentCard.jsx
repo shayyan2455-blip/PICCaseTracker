@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import DocumentViewerModal from './DocumentViewerModal'
 
 const typeLabels = {
   rti_request: 'RTI Request',
@@ -29,38 +29,7 @@ const typeIcons = {
 export default function DocumentCard({ doc, onDelete }) {
   const label = typeLabels[doc.document_type] || doc.document_type
   const icon = typeIcons[doc.document_type] || typeIcons.default
-  const [downloading, setDownloading] = useState(false)
-  const [openError, setOpenError] = useState('')
-
-  async function handleOpen() {
-    if (!doc.file_path || downloading) return
-    setDownloading(true)
-    setOpenError('')
-
-    // Reserve the popup synchronously so the browser's popup blocker allows it
-    const win = window.open('', '_blank')
-
-    try {
-      const { data, error } = await supabase.storage
-        .from('documents')
-        .createSignedUrl(doc.file_path, 60)
-
-      if (error) throw new Error(error.message)
-
-      if (data?.signedUrl) {
-        if (win) {
-          win.location.href = data.signedUrl
-        } else {
-          window.location.href = data.signedUrl
-        }
-      }
-    } catch (e) {
-      console.error('Open failed:', e)
-      win?.close()
-      setOpenError(e.message || 'Failed to open document')
-    }
-    setDownloading(false)
-  }
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   return (
     <div className="flex items-start gap-4 rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}>
@@ -96,17 +65,15 @@ export default function DocumentCard({ doc, onDelete }) {
         <div className="mt-2 flex gap-2">
           {doc.file_path && (
             <button
-              onClick={handleOpen}
-              disabled={downloading}
+              onClick={() => setViewerOpen(true)}
               className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors hover:opacity-80"
               style={{ backgroundColor: 'color-mix(in srgb, var(--main-color) 12%, transparent)', color: 'var(--main-color)' }}
             >
               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
               </svg>
-              {downloading ? 'Opening...' : 'Open'}
+              Open
             </button>
           )}
           {onDelete && (
@@ -125,10 +92,8 @@ export default function DocumentCard({ doc, onDelete }) {
             </button>
           )}
         </div>
-        {openError && (
-          <p className="mt-2 text-xs" style={{ color: '#ef4444' }}>{openError}</p>
-        )}
       </div>
+      <DocumentViewerModal isOpen={viewerOpen} onClose={() => setViewerOpen(false)} doc={doc} />
     </div>
   )
 }
