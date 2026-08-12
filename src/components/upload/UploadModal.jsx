@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Tesseract from 'tesseract.js'
 import * as pdfjsLib from 'pdfjs-dist'
 import { supabase } from '../../lib/supabaseClient'
@@ -39,6 +39,25 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
   const fileRef = useRef(null)
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024
+
+  // Track current theme for date picker colorScheme
+  const [colorScheme, setColorScheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
+    }
+    return 'dark'
+  })
+
+  useEffect(() => {
+    const handler = () => {
+      setColorScheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')
+    }
+    window.addEventListener('storage', handler)
+    // Also listen for theme changes on the document
+    const observer = new MutationObserver(handler)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => { window.removeEventListener('storage', handler); observer.disconnect() }
+  }, [])
 
   if (!isOpen) return null
 
@@ -277,10 +296,10 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
                 value={documentDate}
                 onChange={(e) => setDocumentDate(e.target.value)}
                 className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none"
-                style={{ ...inputStyle(), colorScheme: 'dark' }}
+                style={{ ...inputStyle(), colorScheme }}
               />
               <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-                Use this date to distinguish multiple {typeOptions.find((o) => o.value === docType)?.label} entries
+                Use this date to distinguish multiple {typeOptions.find((o) => o.value === docType)?.label} entries. Format: dd/mm/yyyy
               </p>
             </div>
           )}
@@ -293,12 +312,13 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
                 value={rtiFilingDate}
                 onChange={(e) => setRtiFilingDate(e.target.value)}
                 className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none"
-                style={{ ...inputStyle(), colorScheme: 'dark' }}
+                style={{ ...inputStyle(), colorScheme }}
               />
               <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
                 {extraction?.filed_date && rtiFilingDate === extraction.filed_date
                   ? 'Auto-detected from the document — adjust if incorrect. A reminder to file the appeal is created 10 days after this date.'
-                  : 'A reminder to file the appeal will be created 10 days after this date'}
+                  : 'A reminder to file the appeal will be created 10 days after this date.'}
+                Format: dd/mm/yyyy
               </p>
             </div>
           )}
