@@ -20,7 +20,7 @@ const typeOptions = [
   { value: 'first_notice', label: 'First Notice' },
   { value: 'second_notice', label: 'Second Notice' },
   { value: 'final_notice', label: 'Final Notice' },
-  { value: 'opposing_comments', label: 'Opposing Comments (Date)' },
+  { value: 'opposing_comments', label: 'Information Shared (Date)' },
   { value: 'rejoinder', label: 'Rejoinder (Date)' },
   { value: 'our_reply', label: 'Our Reply (Date)' },
   { value: 'order', label: 'Order' },

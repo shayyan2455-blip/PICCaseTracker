@@ -7,7 +7,7 @@ const typeLabels = {
   first_notice: 'First Notice',
   second_notice: 'Second Notice',
   final_notice: 'Final Notice',
-  opposing_comments: 'Opposing Comments',
+  opposing_comments: 'Information Shared',
   rejoinder: 'Rejoinder',
   our_reply: 'Our Reply',
   order: 'Order',

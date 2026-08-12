@@ -6,7 +6,7 @@ const typeOptions = [
   { value: 'first_notice', label: 'First Notice' },
   { value: 'second_notice', label: 'Second Notice' },
   { value: 'final_notice', label: 'Final Notice' },
-  { value: 'opposing_comments', label: 'Opposing Comments' },
+  { value: 'opposing_comments', label: 'Information Shared' },
   { value: 'rejoinder', label: 'Rejoinder' },
   { value: 'our_reply', label: 'Our Reply' },
   { value: 'order', label: 'Order' },
