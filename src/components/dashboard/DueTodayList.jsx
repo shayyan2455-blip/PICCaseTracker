@@ -1,5 +1,15 @@
 import { Link } from 'react-router-dom'
 
+function getReminderLabel(notes) {
+  if (!notes) return 'Hearing'
+  const n = notes.toLowerCase()
+  if (n.includes('rti') && n.includes('appeal')) return 'Appeal deadline'
+  if (n.includes('rti') && n.includes('filing')) return 'RTI filing'
+  if (n.includes('appeal')) return 'Appeal deadline'
+  if (n.includes('notice')) return 'Notice deadline'
+  return 'Hearing'
+}
+
 export default function DueTodayList({ hearings }) {
   if (hearings.length === 0) return null
 
@@ -19,9 +29,14 @@ export default function DueTodayList({ hearings }) {
             style={{ borderColor: 'color-mix(in srgb, var(--text-color) 5%, transparent)' }}
           >
             <span className="font-medium truncate">{h.case_title || `Case #${h.case_id.slice(0, 8)}`}</span>
-            <span className="shrink-0 text-xs font-medium" style={{ color: 'var(--main-color)' }}>
-              Respond today
-            </span>
+            <div className="shrink-0 flex items-center gap-2 text-right">
+              <span className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+                {getReminderLabel(h.notes)}
+              </span>
+              <span className="shrink-0 text-xs font-medium" style={{ color: 'var(--main-color)' }}>
+                Respond today
+              </span>
+            </div>
           </Link>
         ))}
       </div>
