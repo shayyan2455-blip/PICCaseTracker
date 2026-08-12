@@ -30,21 +30,34 @@ export default function DocumentCard({ doc, onDelete }) {
   const label = typeLabels[doc.document_type] || doc.document_type
   const icon = typeIcons[doc.document_type] || typeIcons.default
   const [downloading, setDownloading] = useState(false)
+  const [openError, setOpenError] = useState('')
 
-  async function handleDownload() {
+  async function handleOpen() {
     if (!doc.file_path || downloading) return
     setDownloading(true)
+    setOpenError('')
+
+    // Reserve the popup synchronously so the browser's popup blocker allows it
+    const win = window.open('', '_blank')
+
     try {
       const { data, error } = await supabase.storage
         .from('documents')
         .createSignedUrl(doc.file_path, 60)
 
       if (error) throw new Error(error.message)
+
       if (data?.signedUrl) {
-        window.open(data.signedUrl, '_blank')
+        if (win) {
+          win.location.href = data.signedUrl
+        } else {
+          window.location.href = data.signedUrl
+        }
       }
     } catch (e) {
-      console.error('Download failed:', e)
+      console.error('Open failed:', e)
+      win?.close()
+      setOpenError(e.message || 'Failed to open document')
     }
     setDownloading(false)
   }
@@ -83,7 +96,7 @@ export default function DocumentCard({ doc, onDelete }) {
         <div className="mt-2 flex gap-2">
           {doc.file_path && (
             <button
-              onClick={handleDownload}
+              onClick={handleOpen}
               disabled={downloading}
               className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors hover:opacity-80"
               style={{ backgroundColor: 'color-mix(in srgb, var(--main-color) 12%, transparent)', color: 'var(--main-color)' }}
@@ -112,6 +125,9 @@ export default function DocumentCard({ doc, onDelete }) {
             </button>
           )}
         </div>
+        {openError && (
+          <p className="mt-2 text-xs" style={{ color: '#ef4444' }}>{openError}</p>
+        )}
       </div>
     </div>
   )
