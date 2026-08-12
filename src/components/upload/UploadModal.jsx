@@ -10,7 +10,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mi
 
 const MAX_PDF_PAGES = 5
 
-const singleUploadTypes = ['rti_request', 'receipt', 'appeal_to_pic', 'notice', 'order']
+const singleUploadTypes = ['rti_request', 'receipt', 'appeal_to_pic', 'order']
 const multiDateTypes = ['opposing_comments', 'rejoinder', 'our_reply']
 
 const typeOptions = [
@@ -202,7 +202,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
       // appeal_no and is_disposed have no column on `documents` — they're
       // case-level facts. Passed as underscore-prefixed extras so CaseDetail
       // can apply them to the case record and strip them before insert.
-      onUpload({
+      await onUpload({
         case_id: caseId,
         document_type: docType,
         file_path: storagePath,

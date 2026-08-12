@@ -23,10 +23,31 @@ const typeIcons = {
   ),
 }
 
-export default function DocumentCard({ doc, onDelete }) {
+export default function DocumentCard({ doc, onDelete, onRename }) {
   const label = typeLabels[doc.document_type] || doc.document_type
   const icon = typeIcons[doc.document_type] || typeIcons.default
   const [viewerOpen, setViewerOpen] = useState(false)
+  const [renaming, setRenaming] = useState(false)
+  const [newName, setNewName] = useState(doc.file_name || '')
+
+  function startRename() {
+    setNewName(doc.file_name || '')
+    setRenaming(true)
+  }
+
+  async function saveRename() {
+    const trimmed = newName.trim()
+    if (!trimmed || trimmed === doc.file_name) {
+      setRenaming(false)
+      return
+    }
+    try {
+      await onRename(doc.id, trimmed)
+      setRenaming(false)
+    } catch {
+      // keep the input open so the user can retry
+    }
+  }
 
   return (
     <div className="flex items-start gap-4 rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}>
@@ -48,9 +69,32 @@ export default function DocumentCard({ doc, onDelete }) {
             </span>
           )}
         </div>
-        <p className="truncate text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-          {doc.file_name}
-        </p>
+        {renaming ? (
+          <div className="mt-1 flex items-center gap-1.5">
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') setRenaming(false) }}
+              className="w-full min-w-0 flex-1 rounded border px-2 py-1 text-sm outline-none"
+              style={{
+                backgroundColor: 'var(--second-bg-color)',
+                borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+                color: 'var(--text-color)',
+              }}
+              autoFocus
+            />
+            <button onClick={saveRename} className="rounded px-2 py-1 text-xs font-medium" style={{ backgroundColor: 'color-mix(in srgb, var(--main-color) 12%, transparent)', color: 'var(--main-color)' }}>
+              Save
+            </button>
+            <button onClick={() => setRenaming(false)} className="rounded px-2 py-1 text-xs font-medium" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <p className="truncate text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+            {doc.file_name}
+          </p>
+        )}
         {doc.extracted_date && (
           <p className="mt-1 text-xs font-medium" style={{ color: 'var(--main-color)' }}>
             Due: {new Date(doc.extracted_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -71,6 +115,19 @@ export default function DocumentCard({ doc, onDelete }) {
                 <circle cx="12" cy="12" r="3" />
               </svg>
               Open
+            </button>
+          )}
+          {onRename && (
+            <button
+              onClick={startRename}
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors hover:opacity-80"
+              style={{ backgroundColor: 'color-mix(in srgb, var(--text-color) 8%, transparent)', color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Rename
             </button>
           )}
           {onDelete && (

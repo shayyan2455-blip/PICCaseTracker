@@ -2,8 +2,12 @@ import { useDocumentsContext } from '../../lib/DocumentsContext'
 import DocumentCard from './DocumentCard'
 
 export default function DocumentTimeline({ caseId, onDeleteDoc }) {
-  const { getDocumentsForCase } = useDocumentsContext()
+  const { getDocumentsForCase, updateDocument } = useDocumentsContext()
   const docs = getDocumentsForCase(caseId)
+
+  async function handleRename(docId, newName) {
+    await updateDocument(docId, { file_name: newName })
+  }
 
   if (docs.length === 0) {
     return (
@@ -39,7 +43,7 @@ export default function DocumentTimeline({ caseId, onDeleteDoc }) {
               borderColor: 'var(--main-color)',
             }}
           />
-          <DocumentCard doc={doc} onDelete={onDeleteDoc} />
+          <DocumentCard doc={doc} onDelete={onDeleteDoc} onRename={handleRename} />
         </div>
       ))}
     </div>
