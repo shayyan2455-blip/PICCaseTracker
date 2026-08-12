@@ -5,6 +5,7 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
   const [objectUrl, setObjectUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [pdfConverting, setPdfConverting] = useState(false)
   const objectUrlRef = useRef(null)
 
   useEffect(() => {
@@ -49,6 +50,87 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
   }, [isOpen, doc])
 
   if (!isOpen) return null
+
+  function baseName() {
+    return (doc?.file_name || 'document').replace(/\.[^.]+$/, '')
+  }
+
+  function fileExt() {
+    return (doc?.file_name || '').split('.').pop()?.toLowerCase() || ''
+  }
+
+  function downloadBlob(name, blob) {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
+  function handleDownloadOriginal() {
+    if (!objectUrl) return
+    const a = document.createElement('a')
+    a.href = objectUrl
+    a.download = doc?.file_name || 'document'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
+  async function handleDownloadPdf() {
+    if (!objectUrl || pdfConverting) return
+    const ext = fileExt()
+
+    if (ext === 'pdf') {
+      handleDownloadOriginal()
+      return
+    }
+
+    setPdfConverting(true)
+    try {
+      const res = await fetch(objectUrl)
+      if (!res.ok) throw new Error('Failed to read file')
+      const blob = await res.blob()
+
+      const img = new Image()
+      img.src = URL.createObjectURL(blob)
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = () => reject(new Error('Could not read image'))
+      })
+
+      // Flatten onto a white canvas so transparent PNGs render correctly
+      const canvas = document.createElement('canvas')
+      canvas.width = img.naturalWidth
+      canvas.height = img.naturalHeight
+      const ctx = canvas.getContext('2d')
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0)
+      const jpegData = canvas.toDataURL('image/jpeg', 0.95)
+
+      const { jsPDF } = await import('jspdf')
+      const orientation = canvas.width > canvas.height ? 'l' : 'p'
+      const pdf = new jsPDF({ orientation, unit: 'pt' })
+      const pageW = pdf.internal.pageSize.getWidth()
+      const pageH = pdf.internal.pageSize.getHeight()
+      const scale = Math.min(pageW / canvas.width, pageH / canvas.height)
+      const w = canvas.width * scale
+      const h = canvas.height * scale
+      const x = (pageW - w) / 2
+      const y = (pageH - h) / 2
+      pdf.addImage(jpegData, 'JPEG', x, y, w, h)
+      pdf.save(baseName() + '.pdf')
+    } catch (e) {
+      console.error('PDF conversion failed:', e)
+      setError('Failed to convert to PDF')
+    } finally {
+      setPdfConverting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -96,12 +178,40 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
           <p className="truncate text-sm font-medium" style={{ color: '#e5e5e5' }}>
             {doc?.file_name || 'Document'}
           </p>
-          <button onClick={onClose} className="rounded-lg p-1 transition-colors hover:opacity-70" style={{ color: '#e5e5e5' }} aria-label="Close viewer">
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleDownloadOriginal}
+              disabled={pdfConverting}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+              style={{ backgroundColor: 'rgba(255,255,255,0.12)', color: '#e5e5e5' }}
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Download as {fileExt().toUpperCase() || 'File'}
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={pdfConverting}
+              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-40"
+              style={{ backgroundColor: 'var(--main-color)', color: '#ffffff' }}
+            >
+              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              {pdfConverting ? 'Converting...' : 'Download as PDF'}
+            </button>
+            <button onClick={onClose} className="rounded-lg p-1 transition-colors hover:opacity-70" style={{ color: '#e5e5e5' }} aria-label="Close viewer">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
         <iframe
           src={objectUrl}
