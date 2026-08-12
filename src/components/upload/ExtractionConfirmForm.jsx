@@ -23,7 +23,7 @@ function inputStyle() {
 // higher up in UploadModal — don't duplicate it here.
 const SKIP_KEYS = new Set(['filed_date'])
 
-export default function ExtractionConfirmForm({ extraction, onFieldChange, onConfirm, onEdit, onCancel }) {
+export default function ExtractionConfirmForm({ extraction, onFieldChange, onConfirm, onEdit, onCancel, colorScheme = 'dark' }) {
   const showEdit = typeof onEdit === 'function'
   const fields = (EXTRACTABLE_FIELDS[extraction.document_type] || []).filter((f) => !SKIP_KEYS.has(f.key))
 
@@ -94,7 +94,7 @@ export default function ExtractionConfirmForm({ extraction, onFieldChange, onCon
                     onChange={(e) => onFieldChange(field.key, e.target.value)}
                     placeholder={field.type === 'text' ? `Enter ${field.label.toLowerCase()}` : undefined}
                     className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
-                    style={{ ...inputStyle(), ...(field.type === 'date' ? { colorScheme: 'dark' } : {}) }}
+                    style={{ ...inputStyle(), ...(field.type === 'date' ? { colorScheme } : {}) }}
                   />
                 )}
 

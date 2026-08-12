@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import DocumentViewerModal from './DocumentViewerModal'
+import { formatNoticeNumber } from '../../lib/notice'
 
 const typeLabels = {
   rti_request: 'RTI Request',
@@ -24,7 +25,10 @@ const typeIcons = {
 }
 
 export default function DocumentCard({ doc, onDelete, onRename }) {
-  const label = typeLabels[doc.document_type] || doc.document_type
+  const baseLabel = typeLabels[doc.document_type] || doc.document_type
+  const label = doc.document_type === 'notice' && doc.notice_number != null
+    ? `${baseLabel} (${formatNoticeNumber(doc.notice_number)})`
+    : baseLabel
   const icon = typeIcons[doc.document_type] || typeIcons.default
   const [viewerOpen, setViewerOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)

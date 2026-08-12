@@ -4,6 +4,7 @@ import * as pdfjsLib from 'pdfjs-dist'
 import { supabase } from '../../lib/supabaseClient'
 import { getOrgId } from '../../lib/org'
 import { parseNoticeOrder } from '../../extraction/parseNoticeOrder'
+import { NOTICE_NUMBER_OPTIONS, formatNoticeNumber } from '../../lib/notice'
 import ExtractionConfirmForm from './ExtractionConfirmForm'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
@@ -17,7 +18,7 @@ const typeOptions = [
   { value: 'rti_request', label: 'RTI Request' },
   { value: 'receipt', label: 'Receipt' },
   { value: 'appeal_to_pic', label: 'Appeal to PIC' },
-  { value: 'notice', label: 'Notice (x1, x2, x3...)' },
+  { value: 'notice', label: 'Notice' },
   { value: 'rejoinder', label: 'Rejoinder (Date)' },
   { value: 'our_reply', label: 'Our Reply (Date)' },
   { value: 'order', label: 'Order' },
@@ -33,6 +34,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
   const [ocrStatus, setOcrStatus] = useState('')
   const [documentDate, setDocumentDate] = useState('')
   const [rtiFilingDate, setRtiFilingDate] = useState('')
+  const [noticeNumber, setNoticeNumber] = useState('1')
   const fileRef = useRef(null)
 
   const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -213,6 +215,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
         extraction_confidence: extraction?.confidence || 'high',
         raw_text: null,
         rti_filing_date: rtiFilingDate || null,
+        notice_number: docType === 'notice' ? parseInt(noticeNumber, 10) : null,
         _appeal_no: extraction?.appeal_no || null,
         _is_disposed: docType === 'order' ? Boolean(extraction?.is_disposed) : null,
       })
@@ -232,6 +235,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
     setDocType(typeOptions[0].value)
     setDocumentDate('')
     setRtiFilingDate('')
+    setNoticeNumber('1')
     if (fileRef.current) fileRef.current.value = ''
     onClose()
   }
@@ -297,6 +301,25 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
               />
               <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
                 Use this date to distinguish multiple {typeOptions.find((o) => o.value === docType)?.label} entries. Format: dd/mm/yyyy
+              </p>
+            </div>
+          )}
+
+          {docType === 'notice' && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Notice Number</label>
+              <select
+                value={noticeNumber}
+                onChange={(e) => setNoticeNumber(e.target.value)}
+                className="w-full rounded-lg border px-4 py-2.5 text-sm outline-none"
+                style={inputStyle()}
+              >
+                {NOTICE_NUMBER_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+                Shown as Notice ({formatNoticeNumber(noticeNumber)}) in the documents list
               </p>
             </div>
           )}
@@ -397,6 +420,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
               onFieldChange={handleFieldChange}
               onConfirm={handleConfirm}
               onCancel={resetAndClose}
+              colorScheme={colorScheme}
             />
           )}
         </div>

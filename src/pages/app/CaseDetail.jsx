@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useCasesContext } from '../../lib/CasesContext'
 import { useDocumentsContext } from '../../lib/DocumentsContext'
@@ -14,12 +14,28 @@ export default function CaseDetail() {
   const navigate = useNavigate()
   const { cases, loading: casesLoading, getCase, updateCase, deleteCase } = useCasesContext()
   const { addDocument, deleteDocument, getDocumentsForCase } = useDocumentsContext()
-  const { addHearing, getHearingsForCase, resolveHearing } = useHearingsContext()
+  const { addHearing, getHearingsForCase, resolveHearing, updateHearing } = useHearingsContext()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [deleting, setDeleting] = useState(false)
+  const [colorScheme, setColorScheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
+    }
+    return 'dark'
+  })
   const c = getCase(id)
+
+  useEffect(() => {
+    const handler = () => {
+      setColorScheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')
+    }
+    window.addEventListener('storage', handler)
+    const observer = new MutationObserver(handler)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => { window.removeEventListener('storage', handler); observer.disconnect() }
+  }, [])
 
   const caseDocs = getDocumentsForCase ? getDocumentsForCase(id) : []
 
@@ -68,14 +84,21 @@ export default function CaseDetail() {
     }
 
     if (docFields.extracted_date && newDoc) {
-      await addHearing({
-        case_id: id,
-        document_id: newDoc.id,
-        due_date: docFields.extracted_date,
-        outcome: 'pending',
-        next_date: null,
-        notes: null,
-      })
+      // A notice's hearing date often matches a next-hearing date already set
+      // on an existing pending hearing — don't create a duplicate for the same day.
+      const existing = getHearingsForCase(id).find(
+        (h) => h.outcome === 'pending' && h.due_date === docFields.extracted_date
+      )
+      if (!existing) {
+        await addHearing({
+          case_id: id,
+          document_id: newDoc.id,
+          due_date: docFields.extracted_date,
+          outcome: 'pending',
+          next_date: null,
+          notes: 'Hearing',
+        })
+      }
     }
 
     if (_appeal_no && !c.case_number) {
@@ -121,6 +144,10 @@ export default function CaseDetail() {
 
   async function handleResolve(hearingId, outcome) {
     await resolveHearing(hearingId, outcome)
+  }
+
+  async function handleSetNext(hearingId, nextDate) {
+    await updateHearing(hearingId, { due_date: nextDate })
   }
 
   if (!c) {
@@ -299,34 +326,13 @@ export default function CaseDetail() {
           <h2 className="mb-3 text-lg font-bold">Pending Deadlines</h2>
           <div className="flex flex-col gap-2">
             {pendingHearings.map((h) => (
-              <div
+              <PendingHearingRow
                 key={h.id}
-                className="flex items-center justify-between rounded-lg border px-4 py-3"
-                style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}
-              >
-                <div>
-                  <p className="text-sm font-medium">
-                    Due: {new Date(h.due_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                  </p>
-                  {h.notes && <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>{h.notes}</p>}
-                </div>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => handleResolve(h.id, 'resolved')}
-                    className="rounded px-2.5 py-1 text-xs font-medium text-green-500"
-                    style={{ backgroundColor: 'color-mix(in srgb, #22c55e 12%, transparent)' }}
-                  >
-                    Resolved
-                  </button>
-                  <button
-                    onClick={() => handleResolve(h.id, 'adjourned')}
-                    className="rounded px-2.5 py-1 text-xs font-medium"
-                    style={{ backgroundColor: 'color-mix(in srgb, var(--text-color) 8%, transparent)', color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}
-                  >
-                    Adjourned
-                  </button>
-                </div>
-              </div>
+                hearing={h}
+                colorScheme={colorScheme}
+                onResolve={handleResolve}
+                onSetNext={handleSetNext}
+              />
             ))}
           </div>
         </div>
@@ -349,6 +355,73 @@ export default function CaseDetail() {
         onUpload={handleUpload}
         existingDocs={caseDocs}
       />
+    </div>
+  )
+}
+
+function PendingHearingRow({ hearing: h, colorScheme, onResolve, onSetNext }) {
+  const [nextDate, setNextDate] = useState('')
+
+  function inputStyle() {
+    return {
+      backgroundColor: 'var(--second-bg-color)',
+      borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+      color: 'var(--text-color)',
+    }
+  }
+
+  return (
+    <div
+      className="flex items-center justify-between gap-3 rounded-lg border px-4 py-3"
+      style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}
+    >
+      <div className="min-w-0">
+        <p className="text-sm font-medium">
+          {h.notes || 'Hearing'} — Due: {new Date(h.due_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+        </p>
+        {h.next_date && (
+          <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+            Next hearing: {new Date(h.next_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        )}
+        <div className="mt-2 flex items-center gap-1.5">
+          <input
+            type="date"
+            value={nextDate}
+            onChange={(e) => setNextDate(e.target.value)}
+            className="rounded border px-2 py-1 text-xs outline-none"
+            style={{ ...inputStyle(), colorScheme }}
+            title="Date of the next hearing"
+          />
+          <button
+            onClick={() => {
+              if (!nextDate) return
+              onSetNext(h.id, nextDate)
+              setNextDate('')
+            }}
+            className="rounded px-2.5 py-1 text-xs font-medium"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--main-color) 12%, transparent)', color: 'var(--main-color)' }}
+          >
+            Set next hearing
+          </button>
+        </div>
+      </div>
+      <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+        <button
+          onClick={() => onResolve(h.id, 'resolved')}
+          className="rounded px-2.5 py-1 text-xs font-medium text-green-500"
+          style={{ backgroundColor: 'color-mix(in srgb, #22c55e 12%, transparent)' }}
+        >
+          Resolved
+        </button>
+        <button
+          onClick={() => onResolve(h.id, 'adjourned')}
+          className="rounded px-2.5 py-1 text-xs font-medium"
+          style={{ backgroundColor: 'color-mix(in srgb, var(--text-color) 8%, transparent)', color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}
+        >
+          Adjourned
+        </button>
+      </div>
     </div>
   )
 }
