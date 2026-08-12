@@ -6,7 +6,6 @@ import { useHearingsContext } from '../../lib/HearingsContext'
 import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import DocumentTimeline from '../../components/cases/DocumentTimeline'
 import UploadModal from '../../components/upload/UploadModal'
-import SubmitAppealModal from '../../components/upload/SubmitAppealModal'
 
 const statusOptions = ['draft', 'rti_filed', 'appeal_filed', 'under_notice', 'disposed', 'closed']
 
@@ -17,7 +16,6 @@ export default function CaseDetail() {
   const { addDocument, deleteDocument, getDocumentsForCase } = useDocumentsContext()
   const { addHearing, getHearingsForCase, resolveHearing } = useHearingsContext()
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [submitAppealOpen, setSubmitAppealOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({})
   const [deleting, setDeleting] = useState(false)
@@ -337,14 +335,9 @@ export default function CaseDetail() {
       <div className="mt-10">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold">Documents</h2>
-          <div className="flex gap-2">
-            <button onClick={() => setSubmitAppealOpen(true)} className="btn-primary text-sm px-4 py-2">
-              Submit Appeal
-            </button>
-            <button onClick={() => setUploadOpen(true)} className="btn-ghost text-sm px-4 py-2">
-              + Upload
-            </button>
-          </div>
+          <button onClick={() => setUploadOpen(true)} className="btn-ghost text-sm px-4 py-2">
+            + Upload
+          </button>
         </div>
         <DocumentTimeline caseId={id} onDeleteDoc={handleDeleteDoc} />
       </div>
@@ -355,13 +348,6 @@ export default function CaseDetail() {
         caseId={id}
         onUpload={handleUpload}
         existingDocs={caseDocs}
-      />
-
-      <SubmitAppealModal
-        isOpen={submitAppealOpen}
-        onClose={() => setSubmitAppealOpen(false)}
-        caseId={id}
-        onUpload={handleUpload}
       />
     </div>
   )
