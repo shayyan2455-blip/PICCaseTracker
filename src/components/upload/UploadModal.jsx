@@ -58,6 +58,28 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
     return () => { window.removeEventListener('storage', handler); observer.disconnect() }
   }, [])
 
+  // Reset the form every time the modal opens. Crucially, default docType to
+  // the first *available* option — after an RTI is uploaded, 'rti_request' is
+  // filtered out of the dropdown, so keeping it as the state value desyncs the
+  // select (it visually shows the next option) and wrongly shows the RTI
+  // Filing Date field / "Already uploaded" message.
+  useEffect(() => {
+    if (!isOpen) return
+    const used = new Set(existingDocs.map((d) => d.document_type))
+    const firstAvailable = typeOptions.find(
+      (o) => !(singleUploadTypes.includes(o.value) && used.has(o.value))
+    )
+    setDocType(firstAvailable?.value || typeOptions[0].value)
+    setFile(null)
+    setExtraction(null)
+    setUploadError('')
+    setOcrStatus('')
+    setDocumentDate('')
+    setRtiFilingDate('')
+    setNoticeNumber('1')
+    if (fileRef.current) fileRef.current.value = ''
+  }, [isOpen])
+
   if (!isOpen) return null
 
   const usedTypes = new Set(existingDocs.map((d) => d.document_type))
