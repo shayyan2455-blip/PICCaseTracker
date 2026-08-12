@@ -1,6 +1,76 @@
 const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december']
 const monthAbbr = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec']
 
+function pad(n) {
+  return String(n).padStart(2, '0')
+}
+
+// Pakistan uses DD/MM/YYYY — interpret numeric dates in that order
+function normalizeNumericDate(day, month, year) {
+  const y = year.length === 2 ? '20' + year : year
+  return `${y}-${pad(month)}-${pad(day)}`
+}
+
+const numericDateRe = /(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/g
+
+function isLikelyDay(n) { return n >= 1 && n <= 31 }
+function isLikelyMonth(n) { return n >= 1 && n <= 12 }
+
+function collectNumericDates(text) {
+  const out = []
+  let m
+  const re = new RegExp(numericDateRe.source, 'g')
+  while ((m = re.exec(text))) {
+    const a = parseInt(m[1], 10)
+    const b = parseInt(m[2], 10)
+    const y = m[3]
+    if (!isLikelyDay(a) || !isLikelyMonth(b)) continue
+    if (isLikelyMonth(a) && !isLikelyDay(b)) continue
+    if (b > 12 && a <= 12) continue // treat as DD/MM only when unambiguous
+    out.push({
+      iso: normalizeNumericDate(a, b, y),
+      index: m.index,
+      ctx: text.slice(Math.max(0, m.index - 40), m.index + m[0].length + 40).toLowerCase(),
+    })
+  }
+  return out
+}
+
+function collectWordDates(text) {
+  const out = []
+  const re = new RegExp(`(${[...monthNames, ...monthAbbr].join('|')})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*,?\\s*(\\d{4})`, 'gi')
+  let m
+  while ((m = re.exec(text))) {
+    const monthIdx = [...monthNames, ...monthAbbr].indexOf(m[1].toLowerCase())
+    if (monthIdx < 0) continue
+    const realMonth = (monthIdx % 12) + 1
+    const iso = `${m[3]}-${pad(realMonth)}-${pad(parseInt(m[2], 10))}`
+    out.push({ iso, index: m.index, ctx: text.slice(Math.max(0, m.index - 40), m.index + m[0].length + 40).toLowerCase() })
+  }
+  return out
+}
+
+function scoreFilingCandidate(c) {
+  let score = 0
+  if (/\bfiled\b|\bfiling\b/.test(c.ctx)) score += 3
+  if (/\bdated\b|\bdate\b|\bdate of\b/.test(c.ctx)) score += 3
+  if (/\breceived\b|\bsubmitted\b|\bapplied\b|\bpresented\b/.test(c.ctx)) score += 2
+  if (/\bcommission\b|\bombudsman\b|\bdepartment\b/.test(c.ctx)) score += 1
+  return score
+}
+
+// Best-effort detection of the RTI filing date (often handwritten on the side)
+function extractFilingDate(text) {
+  const candidates = [...collectNumericDates(text), ...collectWordDates(text)]
+  if (candidates.length === 0) return null
+
+  const scored = candidates.map((c, i) => ({ ...c, score: scoreFilingCandidate(c) + (candidates.length === 1 ? 1 : 0) }))
+  scored.sort((a, b) => b.score - a.score || a.index - b.index)
+  const best = scored[0]
+  if (best.score <= 0) return null
+  return best.iso
+}
+
 function parseDate(text) {
   const patterns = [
     /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
@@ -35,6 +105,7 @@ export function parseNoticeOrder(rawText, fileName) {
     respondent: null,
     notice_date: null,
     due_date: null,
+    filed_date: null,
     is_disposed: false,
     confidence: 'high',
     missing_fields: [],
@@ -101,6 +172,14 @@ export function parseNoticeOrder(rawText, fileName) {
 
   if (lower.includes('appeal stands disposed')) {
     result.is_disposed = true
+  }
+
+  if (result.document_type === 'rti_request') {
+    result.filed_date = extractFilingDate(text)
+    if (result.filed_date) {
+      result.confidence = 'low' // handwriting on the side — ask user to verify
+      result.missing_fields.push('verify_filing_date')
+    }
   }
 
   const requiredFields = ['document_type', 'appeal_no']

@@ -1,9 +1,14 @@
 import { useState, useRef } from 'react'
 import Tesseract from 'tesseract.js'
+import * as pdfjsLib from 'pdfjs-dist'
 import { supabase } from '../../lib/supabaseClient'
 import { getOrgId } from '../../lib/org'
 import { parseNoticeOrder } from '../../extraction/parseNoticeOrder'
 import ExtractionConfirmForm from './ExtractionConfirmForm'
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
+
+const MAX_PDF_PAGES = 5
 
 const singleUploadTypes = ['rti_request', 'receipt', 'appeal_to_pic', 'first_notice', 'second_notice', 'final_notice', 'order']
 const multiDateTypes = ['opposing_comments', 'rejoinder', 'our_reply']
@@ -57,6 +62,42 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
     setOcrStatus('')
   }
 
+  async function ocrImage(blob, imageLabel) {
+    return await Tesseract.recognize(blob, 'eng', {
+      logger: (m) => {
+        if (m.status === 'recognizing text') {
+          const pct = Math.round(m.progress * 100)
+          setOcrStatus(`${imageLabel} — Reading text... ${pct}%`)
+        }
+      },
+    })
+  }
+
+  async function ocrPdf(arrayBuffer) {
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    const pageCount = Math.min(pdf.numPages, MAX_PDF_PAGES)
+    let fullText = ''
+
+    for (let i = 1; i <= pageCount; i++) {
+      setOcrStatus(`Converting PDF page ${i} of ${pageCount}...`)
+      const page = await pdf.getPage(i)
+      const viewport = page.getViewport({ scale: 2 })
+      const canvas = document.createElement('canvas')
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+      const ctx = canvas.getContext('2d')
+      await page.render({ canvasContext: ctx, viewport }).promise
+
+      const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.92))
+      if (!blob) continue
+      const result = await ocrImage(blob, `Page ${i}/${pageCount}`)
+      fullText += result.data.text + '\n'
+      page.cleanup()
+    }
+
+    return fullText
+  }
+
   async function handleAnalyze() {
     if (!file) return
     setUploadError('')
@@ -70,15 +111,12 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
 
       if (ext === 'jpg' || ext === 'jpeg' || ext === 'png') {
         setOcrStatus('Extracting text from image...')
-        const result = await Tesseract.recognize(file, 'eng', {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              const pct = Math.round(m.progress * 100)
-              setOcrStatus(`Reading text... ${pct}%`)
-            }
-          },
-        })
+        const result = await ocrImage(file, '')
         rawText = result.data.text
+      } else if (ext === 'pdf') {
+        setOcrStatus('Reading PDF...')
+        const arrayBuffer = await file.arrayBuffer()
+        rawText = await ocrPdf(arrayBuffer)
       } else {
         setOcrStatus('Automatic text extraction not supported for this file type — using filename only')
         await new Promise((r) => setTimeout(r, 500))
@@ -93,6 +131,10 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
 
       setExtraction(result)
       setOcrStatus('')
+
+      if (docType === 'rti_request' && result.filed_date && !rtiFilingDate) {
+        setRtiFilingDate(result.filed_date)
+      }
     } catch (e) {
       console.error('OCR failed:', e)
       const errMsg = e?.message || (typeof e === 'string' ? e : 'unknown error')
@@ -238,7 +280,9 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
                 style={{ ...inputStyle(), colorScheme: 'dark' }}
               />
               <p className="mt-1 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-                A reminder to file the appeal will be created 10 days after this date
+                {extraction?.filed_date && rtiFilingDate === extraction.filed_date
+                  ? 'Auto-detected from the document — adjust if incorrect. A reminder to file the appeal is created 10 days after this date.'
+                  : 'A reminder to file the appeal will be created 10 days after this date'}
               </p>
             </div>
           )}

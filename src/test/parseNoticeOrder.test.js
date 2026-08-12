@@ -48,4 +48,41 @@ describe('parseNoticeOrder', () => {
     expect(result.applicant).toBe('John Doe')
     expect(result.respondent).toBe('Public Body')
   })
+
+  it('detects RTI filing date near "filed" keyword', () => {
+    const result = parseNoticeOrder(
+      'RTI Request\nFiled on 18/02/2026\nThis application is submitted under RTI Act',
+      'rti-request.pdf'
+    )
+    expect(result.document_type).toBe('rti_request')
+    expect(result.filed_date).toBe('2026-02-18')
+  })
+
+  it('detects RTI filing date near "dated" keyword', () => {
+    const result = parseNoticeOrder(
+      'Right to Information Application\nDated 05-03-2026\nSubject: information request',
+      'rti.pdf'
+    )
+    expect(result.document_type).toBe('rti_request')
+    expect(result.filed_date).toBe('2026-03-05')
+  })
+
+  it('does not invent a filing date when no keyword context exists', () => {
+    const result = parseNoticeOrder(
+      'RTI request\nCase no 123\nInformation wanted about roads',
+      'rti.pdf'
+    )
+    expect(result.document_type).toBe('rti_request')
+    expect(result.filed_date).toBeNull()
+  })
+
+  it('marks RTI with detected filing date as low confidence for review', () => {
+    const result = parseNoticeOrder(
+      'RTI Application\nFiled on 10/01/2026',
+      'rti.pdf'
+    )
+    expect(result.filed_date).toBe('2026-01-10')
+    expect(result.confidence).toBe('low')
+    expect(result.missing_fields).toContain('verify_filing_date')
+  })
 })

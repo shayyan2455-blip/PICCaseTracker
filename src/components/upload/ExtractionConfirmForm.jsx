@@ -41,6 +41,14 @@ export default function ExtractionConfirmForm({ extraction, onConfirm, onEdit, o
             <span className="font-medium">{extraction.appeal_no}</span>
           </div>
         )}
+        {extraction.filed_date && (
+          <div className="flex justify-between">
+            <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>RTI Filing Date</span>
+            <span className="font-medium" style={{ color: 'var(--main-color)' }}>
+              {new Date(extraction.filed_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          </div>
+        )}
         {extraction.applicant && (
           <div className="flex justify-between">
             <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>Applicant</span>
