@@ -97,6 +97,36 @@ function parseDate(text) {
   return null
 }
 
+// Which fields are actually meaningful per document type, and how to edit them.
+// This drives both the "missing fields" check and the editable inputs shown
+// in the confirm form — a field never appears as "could not extract" unless
+// it's actually relevant to that document type.
+export const EXTRACTABLE_FIELDS = {
+  rti_request: [{ key: 'filed_date', label: 'RTI filing date', type: 'date' }],
+  receipt: [],
+  appeal_to_pic: [{ key: 'appeal_no', label: 'Appeal number', type: 'text' }],
+  first_notice: [
+    { key: 'appeal_no', label: 'Appeal number', type: 'text' },
+    { key: 'due_date', label: 'Response due date', type: 'date' },
+  ],
+  second_notice: [
+    { key: 'appeal_no', label: 'Appeal number', type: 'text' },
+    { key: 'due_date', label: 'Response due date', type: 'date' },
+  ],
+  final_notice: [
+    { key: 'appeal_no', label: 'Appeal number', type: 'text' },
+    { key: 'due_date', label: 'Response due date', type: 'date' },
+  ],
+  opposing_comments: [],
+  rejoinder: [],
+  our_reply: [],
+  order: [
+    { key: 'appeal_no', label: 'Appeal number', type: 'text' },
+    { key: 'is_disposed', label: 'Disposed status', type: 'select' },
+  ],
+  other: [],
+}
+
 export function parseNoticeOrder(rawText, fileName) {
   const result = {
     document_type: null,
@@ -176,21 +206,24 @@ export function parseNoticeOrder(rawText, fileName) {
 
   if (result.document_type === 'rti_request') {
     result.filed_date = extractFilingDate(text)
+    // Filing dates are usually a handwritten diary stamp, often rotated —
+    // always flag for verification even when something was detected, and
+    // always leave the field editable (handled in EXTRACTABLE_FIELDS below).
     if (result.filed_date) {
-      result.confidence = 'low' // handwriting on the side — ask user to verify
-      result.missing_fields.push('verify_filing_date')
+      result.confidence = 'low'
     }
   }
 
-  const requiredFields = ['document_type', 'appeal_no']
-  for (const field of requiredFields) {
-    if (!result[field]) result.missing_fields.push(field)
-  }
-  if (result.document_type && result.document_type.includes('notice')) {
-    if (!result.due_date) result.missing_fields.push('due_date')
-  }
-  if (result.document_type === 'order') {
-    if (!result.is_disposed) result.missing_fields.push('disposed_status')
+  if (!result.document_type) result.missing_fields.push('document_type')
+
+  // Only check fields that actually apply to this document type — e.g. an
+  // RTI Request has no appeal number yet, and a Notice has no disposed status.
+  const relevantFields = EXTRACTABLE_FIELDS[result.document_type] || []
+  for (const field of relevantFields) {
+    // is_disposed is a boolean the lawyer confirms either way, not something
+    // that's "missing" just because it defaulted to false.
+    if (field.type === 'select') continue
+    if (!result[field.key]) result.missing_fields.push(field.key)
   }
 
   if (result.missing_fields.length > 0) {

@@ -129,6 +129,13 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
         result.due_date = documentDate
       }
 
+      // An Order upload almost always means the case is resolved, even when
+      // the exact "stands disposed" phrasing isn't found. Default the
+      // dropdown to Disposed but leave it editable for interim/partial orders.
+      if (docType === 'order' && !result.is_disposed) {
+        result.is_disposed = true
+      }
+
       setExtraction(result)
       setOcrStatus('')
 
@@ -147,6 +154,10 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
       setExtraction(fallback)
       setOcrStatus('')
     }
+  }
+
+  function handleFieldChange(key, value) {
+    setExtraction((prev) => (prev ? { ...prev, [key]: value } : prev))
   }
 
   async function handleConfirm() {
@@ -172,6 +183,9 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
 
       const { data: { user } } = await supabase.auth.getUser()
 
+      // appeal_no and is_disposed have no column on `documents` — they're
+      // case-level facts. Passed as underscore-prefixed extras so CaseDetail
+      // can apply them to the case record and strip them before insert.
       onUpload({
         case_id: caseId,
         document_type: docType,
@@ -183,6 +197,8 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
         extraction_confidence: extraction?.confidence || 'high',
         raw_text: null,
         rti_filing_date: rtiFilingDate || null,
+        _appeal_no: extraction?.appeal_no || null,
+        _is_disposed: docType === 'order' ? Boolean(extraction?.is_disposed) : null,
       })
       resetAndClose()
     } catch (e) {
@@ -361,6 +377,7 @@ export default function UploadModal({ isOpen, onClose, caseId, onUpload, existin
           {extraction && !uploading && (
             <ExtractionConfirmForm
               extraction={extraction}
+              onFieldChange={handleFieldChange}
               onConfirm={handleConfirm}
               onCancel={resetAndClose}
             />

@@ -1,3 +1,5 @@
+import { EXTRACTABLE_FIELDS } from '../../extraction/parseNoticeOrder'
+
 const typeOptions = [
   { value: 'rti_request', label: 'RTI Request' },
   { value: 'appeal_to_pic', label: 'Appeal to PIC' },
@@ -11,8 +13,22 @@ const typeOptions = [
   { value: 'other', label: 'Other' },
 ]
 
-export default function ExtractionConfirmForm({ extraction, onConfirm, onEdit, onCancel }) {
+function inputStyle() {
+  return {
+    backgroundColor: 'var(--second-bg-color)',
+    borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+    color: 'var(--text-color)',
+  }
+}
+
+// filed_date is already surfaced as its own dedicated "RTI Filing Date" field
+// higher up in UploadModal — don't duplicate it here.
+const SKIP_KEYS = new Set(['filed_date'])
+
+export default function ExtractionConfirmForm({ extraction, onFieldChange, onConfirm, onEdit, onCancel }) {
   const showEdit = typeof onEdit === 'function'
+  const fields = (EXTRACTABLE_FIELDS[extraction.document_type] || []).filter((f) => !SKIP_KEYS.has(f.key))
+
   return (
     <div className="rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)', backgroundColor: 'color-mix(in srgb, var(--main-color) 5%, transparent)' }}>
       <div className="flex items-center gap-2 mb-4">
@@ -35,45 +51,63 @@ export default function ExtractionConfirmForm({ extraction, onConfirm, onEdit, o
           <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>Document Type</span>
           <span className="font-medium">{typeOptions.find(t => t.value === extraction.document_type)?.label || extraction.document_type}</span>
         </div>
-        {extraction.appeal_no && (
-          <div className="flex justify-between">
-            <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>Appeal No.</span>
-            <span className="font-medium">{extraction.appeal_no}</span>
-          </div>
-        )}
-        {extraction.filed_date && (
-          <div className="flex justify-between">
-            <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>RTI Filing Date</span>
-            <span className="font-medium" style={{ color: 'var(--main-color)' }}>
-              {new Date(extraction.filed_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </span>
-          </div>
-        )}
         {extraction.applicant && (
           <div className="flex justify-between">
             <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>Applicant</span>
             <span className="font-medium text-right max-w-[60%] truncate">{extraction.applicant}</span>
           </div>
         )}
-        {extraction.due_date && (
-          <div className="flex justify-between">
-            <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>Due Date</span>
-            <span className="font-medium" style={{ color: 'var(--main-color)' }}>
-              {new Date(extraction.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </span>
-          </div>
-        )}
-        {extraction.is_disposed && (
-          <div className="flex justify-between">
-            <span style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>Status</span>
-            <span className="font-medium text-green-500">Disposed</span>
-          </div>
-        )}
       </div>
 
-      {extraction.missing_fields?.length > 0 && (
-        <div className="mt-3 rounded-lg bg-yellow-500/5 px-3 py-2 text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
-          Could not extract: {extraction.missing_fields.join(', ')}
+      {fields.length > 0 && (
+        <div className="mt-4 flex flex-col gap-3">
+          {fields.map((field) => {
+            const wasDetected = field.type === 'select' ? undefined : Boolean(extraction[field.key])
+            return (
+              <div key={field.key}>
+                <label className="mb-1 flex items-center gap-2 text-xs font-medium">
+                  {field.label}
+                  {wasDetected === true && (
+                    <span className="rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ color: 'var(--main-color)', backgroundColor: 'color-mix(in srgb, var(--main-color) 12%, transparent)' }}>
+                      Auto-detected — verify
+                    </span>
+                  )}
+                  {wasDetected === false && (
+                    <span className="text-[10px]" style={{ color: 'color-mix(in srgb, var(--text-color) 45%, transparent)' }}>
+                      Not detected — enter manually
+                    </span>
+                  )}
+                </label>
+
+                {field.type === 'select' ? (
+                  <select
+                    value={extraction[field.key] ? 'true' : 'false'}
+                    onChange={(e) => onFieldChange(field.key, e.target.value === 'true')}
+                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                    style={inputStyle()}
+                  >
+                    <option value="false">Pending</option>
+                    <option value="true">Disposed</option>
+                  </select>
+                ) : (
+                  <input
+                    type={field.type}
+                    value={extraction[field.key] || ''}
+                    onChange={(e) => onFieldChange(field.key, e.target.value)}
+                    placeholder={field.type === 'text' ? `Enter ${field.label.toLowerCase()}` : undefined}
+                    className="w-full rounded-lg border px-3 py-2 text-sm outline-none"
+                    style={{ ...inputStyle(), ...(field.type === 'date' ? { colorScheme: 'dark' } : {}) }}
+                  />
+                )}
+
+                {field.key === 'appeal_no' && (
+                  <p className="mt-1 text-[11px]" style={{ color: 'color-mix(in srgb, var(--text-color) 45%, transparent)' }}>
+                    Saved as this case's appeal number if not already set
+                  </p>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 

@@ -82,7 +82,10 @@ describe('parseNoticeOrder', () => {
       'rti.pdf'
     )
     expect(result.filed_date).toBe('2026-01-10')
+    // Even when detected, filing dates are usually a handwritten diary stamp —
+    // confidence stays 'low' so the UI shows "Needs review" and the date
+    // stays editable, but it's not a "missing" field since something was found.
     expect(result.confidence).toBe('low')
-    expect(result.missing_fields).toContain('verify_filing_date')
+    expect(result.missing_fields).not.toContain('filed_date')
   })
 })

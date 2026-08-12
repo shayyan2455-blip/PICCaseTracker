@@ -51,10 +51,13 @@ export default function CaseDetail() {
   }
 
   async function handleUpload(doc) {
-    const newDoc = await addDocument(doc)
+    // appeal_no and is_disposed are case-level facts, not document columns —
+    // strip them before the insert and apply them to the case separately.
+    const { _appeal_no, _is_disposed, ...docFields } = doc
+    const newDoc = await addDocument(docFields)
 
-    if (doc.document_type === 'rti_request' && doc.rti_filing_date) {
-      const appealDue = new Date(doc.rti_filing_date)
+    if (docFields.document_type === 'rti_request' && docFields.rti_filing_date) {
+      const appealDue = new Date(docFields.rti_filing_date)
       appealDue.setDate(appealDue.getDate() + 10)
       await addHearing({
         case_id: id,
@@ -66,18 +69,22 @@ export default function CaseDetail() {
       })
     }
 
-    if (doc.extracted_date && newDoc) {
+    if (docFields.extracted_date && newDoc) {
       await addHearing({
         case_id: id,
         document_id: newDoc.id,
-        due_date: doc.extracted_date,
+        due_date: docFields.extracted_date,
         outcome: 'pending',
         next_date: null,
         notes: null,
       })
     }
 
-    if (doc.document_type === 'order') {
+    if (_appeal_no && !c.case_number) {
+      await updateCase(id, { case_number: _appeal_no })
+    }
+
+    if (docFields.document_type === 'order' && _is_disposed) {
       await updateCase(id, { status: 'closed', closed_at: new Date().toISOString() })
     }
   }
