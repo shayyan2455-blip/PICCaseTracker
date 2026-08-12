@@ -4,12 +4,9 @@ import DocumentViewerModal from './DocumentViewerModal'
 const typeLabels = {
   rti_request: 'RTI Request',
   appeal_to_pic: 'Appeal to PIC',
-  first_notice: 'First Notice',
-  second_notice: 'Second Notice',
-  final_notice: 'Final Notice',
+  notice: 'Notice',
   opposing_comments: 'Information Shared',
   rejoinder: 'Rejoinder',
-  our_reply: 'Our Reply',
   order: 'Order',
   other: 'Other',
 }

@@ -71,6 +71,30 @@ function extractFilingDate(text) {
   return best.iso
 }
 
+function scoreDueDateCandidate(c) {
+  let score = 0
+  if (/\bby\b/.test(c.ctx)) score += 3
+  if (/\bfailing\b/.test(c.ctx)) score += 3
+  if (/\bprovide\b|\binformation\b|\bcomments?\b/.test(c.ctx)) score += 2
+  if (/\bfurther action\b|\binitiated\b/.test(c.ctx)) score += 1
+  if (/\bcommission\b/.test(c.ctx)) score += 1
+  return score
+}
+
+// The strict "Commission by <date> failing" anchor is precise but brittle —
+// a single OCR-misread character anywhere in "Commission" (easy on a folded,
+// photographed scan) breaks it entirely. Fall back to scoring every date
+// found near the same keywords, same approach as extractFilingDate.
+function extractDueDate(text) {
+  const candidates = [...collectNumericDates(text), ...collectWordDates(text)]
+  if (candidates.length === 0) return null
+  const scored = candidates.map((c) => ({ ...c, score: scoreDueDateCandidate(c) }))
+  scored.sort((a, b) => b.score - a.score || a.index - b.index)
+  const best = scored[0]
+  if (best.score <= 0) return null
+  return best.iso
+}
+
 function parseDate(text) {
   const patterns = [
     /(\d{1,2})\/(\d{1,2})\/(\d{4})/,
@@ -105,15 +129,7 @@ export const EXTRACTABLE_FIELDS = {
   rti_request: [{ key: 'filed_date', label: 'RTI filing date', type: 'date' }],
   receipt: [],
   appeal_to_pic: [{ key: 'appeal_no', label: 'Appeal number', type: 'text' }],
-  first_notice: [
-    { key: 'appeal_no', label: 'Appeal number', type: 'text' },
-    { key: 'due_date', label: 'Response due date', type: 'date' },
-  ],
-  second_notice: [
-    { key: 'appeal_no', label: 'Appeal number', type: 'text' },
-    { key: 'due_date', label: 'Response due date', type: 'date' },
-  ],
-  final_notice: [
+  notice: [
     { key: 'appeal_no', label: 'Appeal number', type: 'text' },
     { key: 'due_date', label: 'Response due date', type: 'date' },
   ],
@@ -142,14 +158,19 @@ export function parseNoticeOrder(rawText, fileName) {
   }
 
   const text = rawText || ''
+  // Collapse all whitespace runs (including line wraps from OCR/PDF text
+  // extraction) to single spaces before matching. A date or phrase that
+  // happens to wrap across a visual line in the scan should never break
+  // extraction just because a \n landed in the middle of it.
+  const flatText = text.replace(/\s+/g, ' ')
   const lower = text.toLowerCase()
   const nameLower = fileName.toLowerCase()
 
   const noticeTypes = [
-    { match: /first notice/i, type: 'first_notice' },
-    { match: /second notice/i, type: 'second_notice' },
-    { match: /final notice/i, type: 'final_notice' },
-    { match: /^notice/i, type: 'first_notice' },
+    { match: /first notice/i, type: 'notice' },
+    { match: /second notice/i, type: 'notice' },
+    { match: /final notice/i, type: 'notice' },
+    { match: /^notice/i, type: 'notice' },
   ]
 
   const orderMatch = /order/i
@@ -178,7 +199,7 @@ export function parseNoticeOrder(rawText, fileName) {
     }
   }
 
-  const appealNoMatch = text.match(/Appeal\s*No\.?\s*(\d{3,5}-\d{2}\/\d{2,4})/i)
+  const appealNoMatch = flatText.match(/Appeal\s*No\.?\s*(\d{3,5}-\d{2}\/\d{2,4})/i)
   if (appealNoMatch) result.appeal_no = appealNoMatch[1]
 
   const vsMatch = text.match(/(.+?)(?:\s*\n\s*)?(?:vs|versus|v\/s)(?:\s*\n\s*)?(.+?)(?:\n|$)/i)
@@ -187,17 +208,24 @@ export function parseNoticeOrder(rawText, fileName) {
     result.respondent = vsMatch[2].trim()
   }
 
-  const dateLabelMatch = text.match(/Date\s*:\s*(.+)/i)
+  const dateLabelMatch = flatText.match(/Date\s*:\s*(.+)/i)
   if (dateLabelMatch) {
     result.notice_date = parseDate(dateLabelMatch[1])
   }
   if (!result.notice_date) {
-    result.notice_date = parseDate(text)
+    result.notice_date = parseDate(flatText)
   }
 
-  const dueAnchor = text.match(/Commission\s+by\s+(.+?)(?:failing|\.|$)/i)
+  const dueAnchor = flatText.match(/Commission\s+by\s+(.+?)(?:failing|\.|$)/i)
   if (dueAnchor) {
     result.due_date = parseDate(dueAnchor[1])
+  }
+  if (!result.due_date) {
+    // Anchor phrase didn't match cleanly — likely an OCR misread somewhere
+    // in "Commission by ... failing". Fall back to scoring every date found
+    // against the same surrounding keywords instead of requiring an exact
+    // contiguous phrase.
+    result.due_date = extractDueDate(flatText)
   }
 
   if (lower.includes('appeal stands disposed')) {

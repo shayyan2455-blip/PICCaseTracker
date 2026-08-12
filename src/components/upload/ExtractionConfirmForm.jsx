@@ -3,9 +3,7 @@ import { EXTRACTABLE_FIELDS } from '../../extraction/parseNoticeOrder'
 const typeOptions = [
   { value: 'rti_request', label: 'RTI Request' },
   { value: 'appeal_to_pic', label: 'Appeal to PIC' },
-  { value: 'first_notice', label: 'First Notice' },
-  { value: 'second_notice', label: 'Second Notice' },
-  { value: 'final_notice', label: 'Final Notice' },
+  { value: 'notice', label: 'Notice' },
   { value: 'opposing_comments', label: 'Information Shared' },
   { value: 'rejoinder', label: 'Rejoinder' },
   { value: 'our_reply', label: 'Our Reply' },

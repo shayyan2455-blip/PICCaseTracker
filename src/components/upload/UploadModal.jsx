@@ -10,17 +10,14 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mi
 
 const MAX_PDF_PAGES = 5
 
-const singleUploadTypes = ['rti_request', 'receipt', 'appeal_to_pic', 'first_notice', 'second_notice', 'final_notice', 'order']
+const singleUploadTypes = ['rti_request', 'receipt', 'appeal_to_pic', 'notice', 'order']
 const multiDateTypes = ['opposing_comments', 'rejoinder', 'our_reply']
 
 const typeOptions = [
   { value: 'rti_request', label: 'RTI Request' },
   { value: 'receipt', label: 'Receipt' },
   { value: 'appeal_to_pic', label: 'Appeal to PIC' },
-  { value: 'first_notice', label: 'First Notice' },
-  { value: 'second_notice', label: 'Second Notice' },
-  { value: 'final_notice', label: 'Final Notice' },
-  { value: 'opposing_comments', label: 'Information Shared (Date)' },
+  { value: 'notice', label: 'Notice (x1, x2, x3...)' },
   { value: 'rejoinder', label: 'Rejoinder (Date)' },
   { value: 'our_reply', label: 'Our Reply (Date)' },
   { value: 'order', label: 'Order' },

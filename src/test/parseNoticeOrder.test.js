@@ -7,9 +7,9 @@ describe('parseNoticeOrder', () => {
     expect(result.document_type).toBe('order')
   })
 
-  it('detects first notice from text', () => {
+  it('detects notice from text', () => {
     const result = parseNoticeOrder('First Notice issued', 'doc.pdf')
-    expect(result.document_type).toBe('first_notice')
+    expect(result.document_type).toBe('notice')
   })
 
   it('detects RTI request from text', () => {
@@ -87,5 +87,25 @@ describe('parseNoticeOrder', () => {
     // stays editable, but it's not a "missing" field since something was found.
     expect(result.confidence).toBe('low')
     expect(result.missing_fields).not.toContain('filed_date')
+  })
+
+  const noticeBody = (dateText) =>
+    `First Notice\nDate: July 30, 2026\nAppeal No. 5857-07/2026\nAwillia Rayn\nVs\nFECHS\nThe above cited appeal has been received on 30-07-2026. In exercise of the powers vested in this Commission, you are required to provide information / comments to this Commission by ${dateText} failing which further action will be initiated under RAIA 2017.`
+
+  it('extracts due date from a clean notice', () => {
+    const result = parseNoticeOrder(noticeBody('August 12, 2026'), 'notice.pdf')
+    expect(result.due_date).toBe('2026-08-12')
+  })
+
+  it('still extracts due date when a line wrap splits the date mid-way (OCR artifact)', () => {
+    const text = noticeBody('August 12,\n2026')
+    const result = parseNoticeOrder(text, 'notice.pdf')
+    expect(result.due_date).toBe('2026-08-12')
+  })
+
+  it('still extracts due date when "Commission" has a single misread character (OCR artifact)', () => {
+    const text = noticeBody('August 12, 2026').replace('Commission by', 'Commssion by')
+    const result = parseNoticeOrder(text, 'notice.pdf')
+    expect(result.due_date).toBe('2026-08-12')
   })
 })
