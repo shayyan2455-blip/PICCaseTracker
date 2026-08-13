@@ -5,6 +5,7 @@ import { supabase } from './lib/supabaseClient'
 import ErrorBoundary from './components/ErrorBoundary'
 import LandingPage from './pages/LandingPage'
 import NotFound from './pages/NotFound'
+import Blocked from './pages/Blocked'
 import LoginModal from './components/auth/LoginModal'
 import SignupModal from './components/auth/SignupModal'
 import ChangePasswordModal from './components/auth/ChangePasswordModal'
@@ -21,6 +22,7 @@ import { HearingsProvider } from './lib/HearingsContext'
 
 function ProtectedRoute({ session, children }) {
   if (!session) return <Navigate to="/" replace />
+  if (session.user?.user_metadata?.blocked === true) return <Navigate to="/blocked" replace />
   return children
 }
 
@@ -128,6 +130,16 @@ export default function App() {
             <Route path="reminders" element={<Reminders />} />
             <Route path="settings" element={<Settings />} />
           </Route>
+          <Route
+            path="/blocked"
+            element={
+              session && !session.user?.user_metadata?.blocked ? (
+                <Navigate to="/app" replace />
+              ) : (
+                <Blocked />
+              )
+            }
+          />
           <Route path="*" element={<NotFound />} />
         </Routes>
         {session && mustChangePassword && <ChangePasswordModal />}
