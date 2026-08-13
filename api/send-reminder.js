@@ -154,80 +154,117 @@ async function sendTestEmail(to) {
 }
 
 async function handleSendOtp(email) {
-  // Check if email exists via the profiles mirror (auth.users stays the source
-  // of truth; profiles is kept in sync by trigger, see migration 024). A direct
-  // indexed query — not admin.listUsers(), which is paginated and misses
-  // accounts beyond the first ~50.
+  const normalizedEmail = (email || '').trim().toLowerCase()
+  if (!normalizedEmail) return { error: 'Missing email' }
+
+  // Rate limit OTP issuance: at most 3 per email in a rolling 10-minute window
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+  const { data: recent } = await supabaseAdmin
+    .from('password_resets')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .gte('created_at', tenMinutesAgo)
+
+  if ((recent?.length || 0) >= 3) {
+    return { error: 'Too many reset attempts, please wait before trying again' }
+  }
+
+  // Check if the account exists via the profiles mirror (auth.users stays the
+  // source of truth; profiles is kept in sync by trigger, see migration 024).
+  // If it doesn't exist, skip sending but still return the same generic
+  // success-shaped response — the endpoint must not reveal whether an email
+  // has an account.
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('id, email')
-    .eq('email', (email || '').trim().toLowerCase())
+    .eq('email', normalizedEmail)
     .maybeSingle()
-  if (!profile) return { error: 'No account found with this email address' }
 
-  // Invalidate any previous unused OTPs for this email
-  await supabaseAdmin
-    .from('password_resets')
-    .update({ used: true })
-    .eq('email', email)
-    .eq('used', false)
+  if (profile) {
+    // Invalidate any previous unused OTPs for this email
+    await supabaseAdmin
+      .from('password_resets')
+      .update({ used: true })
+      .eq('email', normalizedEmail)
+      .eq('used', false)
 
-  // Generate and store OTP
-  const otp = generateOtp()
-  const expiresAt = new Date(Date.now() + 2 * 60 * 1000).toISOString()
+    // Generate and store OTP
+    const otp = generateOtp()
+    const expiresAt = new Date(Date.now() + 2 * 60 * 1000).toISOString()
 
-  const { error: insertErr } = await supabaseAdmin
-    .from('password_resets')
-    .insert({ email, otp, expires_at: expiresAt })
+    const { error: insertErr } = await supabaseAdmin
+      .from('password_resets')
+      .insert({ email: normalizedEmail, otp, expires_at: expiresAt })
 
-  if (insertErr) return { error: 'Failed to generate OTP' }
+    if (insertErr) return { error: 'Failed to generate OTP' }
 
-  // Send email
-  const transporter = getTransporter()
-  try {
-    await transporter.sendMail({
-      from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
-      to: email,
-      subject: 'PIC Case Tracker — Password Reset OTP',
-      html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-        <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
-        <p style="color:#666;margin:0 0 4px">Your OTP for password reset is:</p>
-        <div style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;margin:24px 0;color:#ea580c">${otp}</div>
-        <p style="color:#999;font-size:13px">This OTP expires in 2 minutes. If you did not request this, please ignore this email.</p>
-        <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
-        <p style="color:#999;font-size:12px">PIC Case Tracker</p>
-      </div>`,
-    })
-  } catch {
-    return { error: 'Failed to send OTP email. Check SMTP configuration.' }
+    // Send email
+    const transporter = getTransporter()
+    try {
+      await transporter.sendMail({
+        from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
+        to: normalizedEmail,
+        subject: 'PIC Case Tracker — Password Reset OTP',
+        html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+          <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+          <p style="color:#666;margin:0 0 4px">Your OTP for password reset is:</p>
+          <div style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;margin:24px 0;color:#ea580c">${otp}</div>
+          <p style="color:#999;font-size:13px">This OTP expires in 2 minutes. If you did not request this, please ignore this email.</p>
+          <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
+          <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+        </div>`,
+      })
+    } catch {
+      return { error: 'Failed to send OTP email. Check SMTP configuration.' }
+    }
   }
 
   return { success: true }
 }
 
 async function handleVerifyOtp(email, otp) {
-  const { data, error } = await supabaseAdmin
+  // Fetch the current live OTP row for this email (latest, unused, unexpired)
+  // so failed attempts can be counted against it — the old query filtered by
+  // otp, which meant a wrong code never found the row to increment.
+  const { data: record } = await supabaseAdmin
     .from('password_resets')
     .select('*')
     .eq('email', email)
-    .eq('otp', otp)
     .eq('used', false)
     .gte('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  if (error || !data) return { error: 'Invalid or expired OTP' }
-  return { success: true, resetId: data.id }
+  if (!record) return { error: 'Invalid or expired OTP' }
+
+  // Locked out after 5 failed attempts — kill the row even if the code
+  // entered now is correct and still within the 2-minute window.
+  if (record.attempts >= 5) {
+    await supabaseAdmin.from('password_resets').update({ used: true }).eq('id', record.id)
+    return { error: 'Invalid or expired OTP' }
+  }
+
+  if (record.otp !== otp) {
+    const newAttempts = (record.attempts || 0) + 1
+    await supabaseAdmin
+      .from('password_resets')
+      .update({ attempts: newAttempts, used: newAttempts >= 5 })
+      .eq('id', record.id)
+    return { error: 'Invalid or expired OTP' }
+  }
+
+  return { success: true, resetId: record.id }
 }
 
 async function handleResetPassword(email, otp, newPassword) {
-  // Verify OTP again
+  // Re-verify: fetch the current live OTP row for this email (latest, unused,
+  // unexpired) so failed attempts are counted against the same counter used
+  // by verify-otp.
   const { data: record, error: fetchErr } = await supabaseAdmin
     .from('password_resets')
     .select('*')
     .eq('email', email)
-    .eq('otp', otp)
     .eq('used', false)
     .gte('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
@@ -235,6 +272,20 @@ async function handleResetPassword(email, otp, newPassword) {
     .maybeSingle()
 
   if (fetchErr || !record) return { error: 'Invalid or expired OTP' }
+
+  if (record.attempts >= 5) {
+    await supabaseAdmin.from('password_resets').update({ used: true }).eq('id', record.id)
+    return { error: 'Invalid or expired OTP' }
+  }
+
+  if (record.otp !== otp) {
+    const newAttempts = (record.attempts || 0) + 1
+    await supabaseAdmin
+      .from('password_resets')
+      .update({ attempts: newAttempts, used: newAttempts >= 5 })
+      .eq('id', record.id)
+    return { error: 'Invalid or expired OTP' }
+  }
 
   // Find user by email via the profiles mirror (direct indexed query, not
   // paginated admin.listUsers)

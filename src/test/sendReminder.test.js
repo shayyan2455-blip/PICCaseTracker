@@ -175,20 +175,85 @@ describe('send-reminder auth guards', () => {
     expect(h.listUsers).not.toHaveBeenCalled()
   })
 
-  it('returns an error for send-otp when the email has no profile', async () => {
+  it('does not reveal account existence when send-otp has no matching profile', async () => {
     h.fromChains.profiles = makeChain({
       maybeSingle: async () => ({ data: null, error: null }),
     })
     const res = await invoke({ type: 'send-otp', email: 'nobody@b.com' })
-    expect(res.statusCode).toBe(400)
-    expect(res.payload.error).toBe('No account found with this email address')
+    expect(res.statusCode).toBe(200)
+    expect(res.payload.success).toBe(true)
     expect(h.sendMail).not.toHaveBeenCalled()
+  })
+
+  it('rate-limits OTP issuance to 3 per email per 10 minutes', async () => {
+    h.fromChains.password_resets = makeChain({
+      resolveTo: { data: [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }], error: null },
+    })
+    const res = await invoke({ type: 'send-otp', email: 'a@b.com' })
+    expect(res.statusCode).toBe(400)
+    expect(res.payload.error).toBe('Too many reset attempts, please wait before trying again')
+    expect(h.sendMail).not.toHaveBeenCalled()
+  })
+
+  it('allows OTP issuance when under the rate limit', async () => {
+    h.fromChains.password_resets = makeChain({
+      resolveTo: { data: [{ id: 'r1' }, { id: 'r2' }], error: null },
+    })
+    h.fromChains.profiles = makeChain({
+      maybeSingle: async () => ({ data: { id: 'user-1', email: 'a@b.com' }, error: null }),
+    })
+    const res = await invoke({ type: 'send-otp', email: 'a@b.com' })
+    expect(res.statusCode).toBe(200)
+    expect(res.payload.success).toBe(true)
+    expect(h.sendMail).toHaveBeenCalled()
+  })
+
+  it('rejects a locked-out OTP even when the correct code is entered', async () => {
+    h.fromChains.password_resets = makeChain({
+      maybeSingle: async () => ({ data: { id: 'reset-1', otp: '12345678', attempts: 5 }, error: null }),
+    })
+    const res = await invoke({ type: 'verify-otp', email: 'a@b.com', otp: '12345678' })
+    expect(res.statusCode).toBe(400)
+    expect(res.payload.error).toBe('Invalid or expired OTP')
+  })
+
+  it('increments attempts on a wrong code during verify', async () => {
+    const pchain = makeChain({
+      maybeSingle: async () => ({ data: { id: 'reset-1', otp: '12345678', attempts: 1 }, error: null }),
+    })
+    const updateSpy = vi.spyOn(pchain, 'update')
+    h.fromChains.password_resets = pchain
+
+    const res = await invoke({ type: 'verify-otp', email: 'a@b.com', otp: '00000000' })
+    expect(res.statusCode).toBe(400)
+    expect(updateSpy).toHaveBeenCalledWith({ attempts: 2, used: false })
+  })
+
+  it('kills the OTP row on the 5th failed verify attempt', async () => {
+    const pchain = makeChain({
+      maybeSingle: async () => ({ data: { id: 'reset-1', otp: '12345678', attempts: 4 }, error: null }),
+    })
+    const updateSpy = vi.spyOn(pchain, 'update')
+    h.fromChains.password_resets = pchain
+
+    const res = await invoke({ type: 'verify-otp', email: 'a@b.com', otp: '00000000' })
+    expect(res.statusCode).toBe(400)
+    expect(updateSpy).toHaveBeenCalledWith({ attempts: 5, used: true })
+  })
+
+  it('accepts a correct OTP within the attempt limit', async () => {
+    h.fromChains.password_resets = makeChain({
+      maybeSingle: async () => ({ data: { id: 'reset-1', otp: '12345678', attempts: 0 }, error: null }),
+    })
+    const res = await invoke({ type: 'verify-otp', email: 'a@b.com', otp: '12345678' })
+    expect(res.statusCode).toBe(200)
+    expect(res.payload).toMatchObject({ success: true, resetId: 'reset-1' })
   })
 
   it('resets a password via the profiles mirror instead of listUsers', async () => {
     h.updateUserById.mockResolvedValue({ data: { user: {} }, error: null })
     h.fromChains.password_resets = makeChain({
-      maybeSingle: async () => ({ data: { id: 'reset-1' }, error: null }),
+      maybeSingle: async () => ({ data: { id: 'reset-1', otp: '12345678', attempts: 0 }, error: null }),
     })
     h.fromChains.profiles = makeChain({
       maybeSingle: async () => ({ data: { id: 'user-1', email: 'a@b.com' }, error: null }),
@@ -203,6 +268,24 @@ describe('send-reminder auth guards', () => {
     expect(res.payload.success).toBe(true)
     expect(h.updateUserById).toHaveBeenCalledWith('user-1', { password: 'newpass1' })
     expect(h.listUsers).not.toHaveBeenCalled()
+  })
+
+  it('increments attempts on a wrong code during reset-password without updating', async () => {
+    const pchain = makeChain({
+      maybeSingle: async () => ({ data: { id: 'reset-1', otp: '12345678', attempts: 1 }, error: null }),
+    })
+    const updateSpy = vi.spyOn(pchain, 'update')
+    h.fromChains.password_resets = pchain
+
+    const res = await invoke({
+      type: 'reset-password',
+      email: 'a@b.com',
+      otp: '00000000',
+      password: 'newpass1',
+    })
+    expect(res.statusCode).toBe(400)
+    expect(updateSpy).toHaveBeenCalledWith({ attempts: 2, used: false })
+    expect(h.updateUserById).not.toHaveBeenCalled()
   })
 
   it('returns 401 for a manual daily trigger without a token', async () => {
