@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useCasesContext } from '../../lib/CasesContext'
 import { useDocumentsContext } from '../../lib/DocumentsContext'
 import { useHearingsContext } from '../../lib/HearingsContext'
+import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import DocumentTimeline from '../../components/cases/DocumentTimeline'
 import UploadModal from '../../components/upload/UploadModal'
 
@@ -214,7 +215,10 @@ export default function CaseDetail() {
               style={inputStyle()}
             />
           ) : (
-            <h1 className="text-2xl font-bold sm:text-3xl">{c.title}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-bold sm:text-3xl">{c.title}</h1>
+              <CaseStatusBadge status={c.status} />
+            </div>
           )}
           {!editing && c.case_number && (
             <p className="mt-1 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
@@ -245,7 +249,7 @@ export default function CaseDetail() {
       </div>
 
       <div
-        className="mt-4 flex flex-wrap gap-x-1 overflow-x-auto border-b"
+        className="mt-4 flex flex-wrap gap-x-1 border-b"
         style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}
       >
         {statusOptions.map((s) => {
