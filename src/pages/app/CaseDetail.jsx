@@ -146,6 +146,22 @@ export default function CaseDetail() {
     await resolveHearing(hearingId, outcome)
   }
 
+  async function handleStatusChange(status) {
+    if (status === c.status) return
+    const updates = { status }
+    if (status === 'closed') {
+      updates.closed_at = c.closed_at || new Date().toISOString()
+    } else {
+      updates.closed_at = null
+    }
+    try {
+      await updateCase(id, updates)
+    } catch (e) {
+      console.error('Status update failed:', e)
+      window.alert('Failed to update status. Please try again.')
+    }
+  }
+
   async function handleSetNext(hearingId, nextDate) {
     await updateHearing(hearingId, { due_date: nextDate })
   }
@@ -209,6 +225,19 @@ export default function CaseDetail() {
         </div>
         <div className="flex items-center gap-2">
           <CaseStatusBadge status={c.status} />
+          {!editing && (
+            <select
+              value={c.status}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className="rounded-lg border px-2 py-1 text-xs font-medium outline-none"
+              style={inputStyle()}
+              title="Update case status"
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</option>
+              ))}
+            </select>
+          )}
           {!editing && (
             <button onClick={startEdit} className="btn-ghost p-2" title="Edit case">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
