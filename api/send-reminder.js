@@ -62,9 +62,13 @@ async function handleInviteUser({ email, role, orgId, inviterUserId }) {
     return { error: 'Only the organization owner can invite members', status: 403 }
   }
 
-  // Does the account already exist?
-  const { data: users } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-  const existing = users?.users?.find((u) => u.email === normalizedEmail)
+  // Does the account already exist? (profiles mirrors auth.users, kept in
+  // sync by trigger — avoids paginated admin.listUsers lookups)
+  const { data: existing } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email')
+    .eq('email', normalizedEmail)
+    .maybeSingle()
 
   if (existing) {
     const { data: mem } = await supabaseAdmin
@@ -150,10 +154,16 @@ async function sendTestEmail(to) {
 }
 
 async function handleSendOtp(email) {
-  // Check if email exists in auth.users
-  const { data: users } = await supabaseAdmin.auth.admin.listUsers()
-  const user = users?.users?.find((u) => u.email === email)
-  if (!user) return { error: 'No account found with this email address' }
+  // Check if email exists via the profiles mirror (auth.users stays the source
+  // of truth; profiles is kept in sync by trigger, see migration 024). A direct
+  // indexed query — not admin.listUsers(), which is paginated and misses
+  // accounts beyond the first ~50.
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email')
+    .eq('email', (email || '').trim().toLowerCase())
+    .maybeSingle()
+  if (!profile) return { error: 'No account found with this email address' }
 
   // Invalidate any previous unused OTPs for this email
   await supabaseAdmin
@@ -226,14 +236,18 @@ async function handleResetPassword(email, otp, newPassword) {
 
   if (fetchErr || !record) return { error: 'Invalid or expired OTP' }
 
-  // Find user by email
-  const { data: users } = await supabaseAdmin.auth.admin.listUsers()
-  const user = users?.users?.find((u) => u.email === email)
-  if (!user) return { error: 'User not found' }
+  // Find user by email via the profiles mirror (direct indexed query, not
+  // paginated admin.listUsers)
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email')
+    .eq('email', (email || '').trim().toLowerCase())
+    .maybeSingle()
+  if (!profile) return { error: 'User not found' }
 
   // Update password via admin API
   const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
-    user.id,
+    profile.id,
     { password: newPassword }
   )
 
@@ -307,10 +321,17 @@ async function sendDailyReminders() {
       .eq('organization_id', orgId)
       .in('role', ['owner', 'lawyer'])
 
-    const emails = []
-    for (const m of members || []) {
-      const { data: u } = await supabaseAdmin.auth.admin.getUserById(m.user_id)
-      if (u?.user?.email) emails.push(u.user.email)
+    // One batched profiles query per org instead of one admin API call per
+    // member (getUserById) — the latter grows linearly with total membership
+    // and risks timing out the serverless function.
+    const memberIds = (members || []).map((m) => m.user_id)
+    let emails = []
+    if (memberIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from('profiles')
+        .select('id, email')
+        .in('id', memberIds)
+      emails = (profiles || []).map((p) => p.email).filter(Boolean)
     }
     memberMap[orgId] = emails
   }
