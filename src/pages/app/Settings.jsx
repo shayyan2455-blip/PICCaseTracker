@@ -76,19 +76,22 @@ export default function Settings() {
     const orgId = await getOrgId()
     if (!orgId) { setInviteError('No organization'); setInviting(false); return }
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setInviteError('Not logged in'); setInviting(false); return }
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!session || !token) { setInviteError('Not logged in'); setInviting(false); return }
 
     try {
       const res = await fetch('/api/send-reminder', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           type: 'invite-user',
           email: inviteEmail.trim(),
           role: inviteRole,
           orgId,
-          inviterUserId: user.id,
         }),
       })
 
@@ -117,9 +120,15 @@ export default function Settings() {
     setError('')
     setSent(false)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user?.email) {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!session?.user?.email) {
       setError('No email found on your account')
+      setSending(false)
+      return
+    }
+    if (!token) {
+      setError('Not logged in')
       setSending(false)
       return
     }
@@ -127,8 +136,11 @@ export default function Settings() {
     try {
       const res = await fetch('/api/send-reminder', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: user.email, type: 'test' }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ to: session.user.email, type: 'test' }),
       })
 
       if (!res.ok) {

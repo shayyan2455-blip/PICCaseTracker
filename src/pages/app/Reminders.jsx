@@ -32,10 +32,20 @@ export default function Reminders() {
   async function handleSendReminders() {
     setSendingReminders(true)
     setSendResult('')
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token
+    if (!token) {
+      setSendResult('Failed: not signed in')
+      setSendingReminders(false)
+      return
+    }
     try {
       const res = await fetch('/api/send-reminder', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ type: 'daily' }),
       })
       const data = await res.json()

@@ -6,6 +6,15 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+async function getAuthUser(req) {
+  const header = req.headers?.authorization || ''
+  const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : ''
+  if (!token) return null
+  const { data, error } = await supabaseAdmin.auth.getUser(token)
+  if (error || !data?.user) return null
+  return data.user
+}
+
 function getTransporter() {
   const smtpUser = process.env.GMAIL_SMTP_USER
   const smtpPass = process.env.GMAIL_SMTP_PASS
@@ -50,7 +59,7 @@ async function handleInviteUser({ email, role, orgId, inviterUserId }) {
     .maybeSingle()
 
   if (!inviter || inviter.role !== 'owner') {
-    return { error: 'Only the organization owner can invite members' }
+    return { error: 'Only the organization owner can invite members', status: 403 }
   }
 
   // Does the account already exist?
@@ -379,7 +388,17 @@ export default async function handler(req, res) {
   try {
     const { to, type } = req.body || {}
 
-    if (req.headers['x-vercel-cron'] || type === 'daily') {
+    if (req.headers['x-vercel-cron']) {
+      const result = await sendDailyReminders()
+      return res.status(200).json({
+        ...result,
+        elapsed_ms: Date.now() - start,
+      })
+    }
+
+    if (type === 'daily') {
+      const authUser = await getAuthUser(req)
+      if (!authUser) return res.status(401).json({ error: 'Unauthorized' })
       const result = await sendDailyReminders()
       return res.status(200).json({
         ...result,
@@ -389,6 +408,8 @@ export default async function handler(req, res) {
 
     if (type === 'test') {
       if (!to) return res.status(400).json({ error: 'Missing recipient email' })
+      const authUser = await getAuthUser(req)
+      if (!authUser) return res.status(401).json({ error: 'Unauthorized' })
       await sendTestEmail(to)
       return res.status(200).json({ success: true, elapsed_ms: Date.now() - start })
     }
@@ -416,9 +437,11 @@ export default async function handler(req, res) {
     }
 
     if (type === 'invite-user') {
-      const { email, role, orgId, inviterUserId } = req.body || {}
-      const result = await handleInviteUser({ email, role, orgId, inviterUserId })
-      return res.status(result.error ? 400 : 200).json({ ...result, elapsed_ms: Date.now() - start })
+      const authUser = await getAuthUser(req)
+      if (!authUser) return res.status(401).json({ error: 'Unauthorized' })
+      const { email, role, orgId } = req.body || {}
+      const result = await handleInviteUser({ email, role, orgId, inviterUserId: authUser.id })
+      return res.status(result.status || (result.error ? 400 : 200)).json({ ...result, elapsed_ms: Date.now() - start })
     }
 
     return res.status(400).json({ error: 'Invalid request' })
