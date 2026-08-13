@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useCasesContext } from '../../lib/CasesContext'
 import { useDocumentsContext } from '../../lib/DocumentsContext'
 import { useHearingsContext } from '../../lib/HearingsContext'
-import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
 import DocumentTimeline from '../../components/cases/DocumentTimeline'
 import UploadModal from '../../components/upload/UploadModal'
 
@@ -224,20 +223,6 @@ export default function CaseDetail() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <CaseStatusBadge status={c.status} />
-          {!editing && (
-            <select
-              value={c.status}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              className="rounded-lg border px-2 py-1 text-xs font-medium outline-none"
-              style={inputStyle()}
-              title="Update case status"
-            >
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}</option>
-              ))}
-            </select>
-          )}
           {!editing && (
             <button onClick={startEdit} className="btn-ghost p-2" title="Edit case">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -259,63 +244,90 @@ export default function CaseDetail() {
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-            Applicant
-          </p>
-          {editing ? (
-            <input
-              value={editForm.applicant_name}
-              onChange={(e) => setEditForm({ ...editForm, applicant_name: e.target.value })}
-              className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
-              style={inputStyle()}
-            />
-          ) : (
-            <p className="mt-1 font-medium">{c.applicant_name}</p>
-          )}
-          {!editing && c.applicant_address && (
-            <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-              {c.applicant_address}
+      <div
+        className="mt-4 flex flex-wrap gap-x-1 overflow-x-auto border-b"
+        style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}
+      >
+        {statusOptions.map((s) => {
+          const active = s === c.status
+          return (
+            <button
+              key={s}
+              onClick={() => handleStatusChange(s)}
+              className="relative whitespace-nowrap px-3 py-2 text-xs font-medium transition-colors sm:text-sm"
+              style={{ color: active ? 'var(--main-color)' : 'color-mix(in srgb, var(--text-color) 55%, transparent)' }}
+            >
+              {s.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+              {active && <span className="absolute inset-x-0 -bottom-px h-0.5" style={{ backgroundColor: 'var(--main-color)' }} />}
+            </button>
+          )
+        })}
+      </div>
+
+      <div
+        className="mt-6 rounded-xl border p-4 sm:p-5"
+        style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}
+      >
+        <div className={editing ? 'grid gap-4 sm:grid-cols-3' : 'flex flex-wrap items-start gap-x-8 gap-y-4'}>
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+              Applicant
             </p>
-          )}
-          {editing && (
-            <input
-              value={editForm.applicant_address}
-              onChange={(e) => setEditForm({ ...editForm, applicant_address: e.target.value })}
-              placeholder="Address"
-              className="mt-2 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
-              style={inputStyle()}
-            />
-          )}
-        </div>
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-            Public Body
-          </p>
-          {editing ? (
-            <input
-              value={editForm.public_body}
-              onChange={(e) => setEditForm({ ...editForm, public_body: e.target.value })}
-              className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
-              style={inputStyle()}
-            />
-          ) : (
-            <p className="mt-1 font-medium">{c.public_body}</p>
-          )}
-        </div>
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-            Created
-          </p>
-          <p className="mt-1 font-medium">
-            {new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </p>
-          {c.closed_at && (
-            <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
-              Closed {new Date(c.closed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            {editing ? (
+              <>
+                <input
+                  value={editForm.applicant_name}
+                  onChange={(e) => setEditForm({ ...editForm, applicant_name: e.target.value })}
+                  className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+                  style={inputStyle()}
+                />
+                <input
+                  value={editForm.applicant_address}
+                  onChange={(e) => setEditForm({ ...editForm, applicant_address: e.target.value })}
+                  placeholder="Address"
+                  className="mt-2 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+                  style={inputStyle()}
+                />
+              </>
+            ) : (
+              <>
+                <p className="mt-1 font-medium">{c.applicant_name}</p>
+                {c.applicant_address && (
+                  <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+                    {c.applicant_address}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+              Public Body
             </p>
-          )}
+            {editing ? (
+              <input
+                value={editForm.public_body}
+                onChange={(e) => setEditForm({ ...editForm, public_body: e.target.value })}
+                className="mt-1 w-full rounded-lg border px-3 py-1.5 text-sm outline-none"
+                style={inputStyle()}
+              />
+            ) : (
+              <p className="mt-1 font-medium">{c.public_body}</p>
+            )}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+              Created
+            </p>
+            <p className="mt-1 font-medium">
+              {new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+            {c.closed_at && (
+              <p className="text-xs" style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}>
+                Closed {new Date(c.closed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
