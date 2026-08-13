@@ -13,3 +13,24 @@
   --main-color: #4caf50;
   --span-color: linear-gradient(270deg, #22c55e 10%, #15803d 100%);
 }
+
+/* Theme-colored scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--main-color) var(--second-bg-color);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--second-bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--span-color);
+  border-radius: 8px;
+  border: 2px solid var(--bg-color);
+}
