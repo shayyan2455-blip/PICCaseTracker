@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 
 export default function DocumentViewerModal({ isOpen, onClose, doc }) {
-  const [objectUrl, setObjectUrl] = useState('')
+  const [signedUrl, setSignedUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [pdfConverting, setPdfConverting] = useState(false)
-  const objectUrlRef = useRef(null)
 
   useEffect(() => {
     if (!isOpen || !doc?.file_path) return
@@ -23,14 +22,7 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
         if (sErr) throw new Error(sErr.message)
         if (!data?.signedUrl) throw new Error('No signed URL returned')
 
-        const res = await fetch(data.signedUrl)
-        if (!res.ok) throw new Error('Failed to load file')
-
-        const blob = await res.blob()
-        if (cancelled) return
-
-        objectUrlRef.current = URL.createObjectURL(blob)
-        setObjectUrl(objectUrlRef.current)
+        if (!cancelled) setSignedUrl(data.signedUrl)
       } catch (e) {
         console.error('View failed:', e)
         if (!cancelled) setError(e.message || 'Failed to open document')
@@ -41,11 +33,7 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
 
     return () => {
       cancelled = true
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current)
-        objectUrlRef.current = null
-      }
-      setObjectUrl('')
+      setSignedUrl('')
     }
   }, [isOpen, doc])
 
@@ -59,29 +47,26 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
     return (doc?.file_name || '').split('.').pop()?.toLowerCase() || ''
   }
 
-  function downloadBlob(name, blob) {
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = name
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }
-
-  function handleDownloadOriginal() {
-    if (!objectUrl) return
-    const a = document.createElement('a')
-    a.href = objectUrl
-    a.download = doc?.file_name || 'document'
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
+  async function handleDownloadOriginal() {
+    if (!signedUrl) return
+    try {
+      const res = await fetch(signedUrl)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = doc?.file_name || 'document'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch {
+      window.open(signedUrl, '_blank')
+    }
   }
 
   async function handleDownloadPdf() {
-    if (!objectUrl || pdfConverting) return
+    if (!signedUrl || pdfConverting) return
     const ext = fileExt()
 
     if (ext === 'pdf') {
@@ -91,7 +76,7 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
 
     setPdfConverting(true)
     try {
-      const res = await fetch(objectUrl)
+      const res = await fetch(signedUrl)
       if (!res.ok) throw new Error('Failed to read file')
       const blob = await res.blob()
 
@@ -102,7 +87,6 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
         img.onerror = () => reject(new Error('Could not read image'))
       })
 
-      // Flatten onto a white canvas so transparent PNGs render correctly
       const canvas = document.createElement('canvas')
       canvas.width = img.naturalWidth
       canvas.height = img.naturalHeight
@@ -167,6 +151,10 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
     )
   }
 
+  const ext = fileExt()
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)
+  const isPdf = ext === 'pdf'
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
@@ -179,7 +167,7 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
             {doc?.file_name || 'Document'}
           </p>
           <div className="flex items-center gap-2">
-            {fileExt() !== 'pdf' && (
+            {!isPdf && (
               <button
                 onClick={handleDownloadOriginal}
                 disabled={pdfConverting}
@@ -191,7 +179,7 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
                   <polyline points="7 10 12 15 17 10" />
                   <line x1="12" y1="15" x2="12" y2="3" />
                 </svg>
-                Download as {fileExt().toUpperCase() || 'File'}
+                Download as {ext.toUpperCase() || 'File'}
               </button>
             )}
             <button
@@ -215,12 +203,21 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
             </button>
           </div>
         </div>
-        <iframe
-          src={objectUrl}
-          className="w-full flex-1"
-          style={{ border: 'none', backgroundColor: '#ffffff' }}
-          title="Document viewer"
-        />
+        {isImage ? (
+          <img
+            src={signedUrl}
+            alt={doc?.file_name || 'Document'}
+            className="max-h-full w-full object-contain"
+            style={{ backgroundColor: '#ffffff' }}
+          />
+        ) : (
+          <iframe
+            src={signedUrl}
+            className="w-full flex-1"
+            style={{ border: 'none', backgroundColor: '#ffffff' }}
+            title="Document viewer"
+          />
+        )}
       </div>
     </div>
   )
