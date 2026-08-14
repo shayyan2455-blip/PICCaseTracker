@@ -252,9 +252,7 @@ describe('send-reminder auth guards', () => {
     h.fromChains.password_resets = makeChain({
       maybeSingle: async () => ({ data: { id: 'reset-1', otp: '12345678', attempts: 0 }, error: null }),
     })
-    h.fromChains.profiles = makeChain({
-      maybeSingle: async () => ({ data: { id: 'user-1', email: 'a@b.com' }, error: null }),
-    })
+    h.listUsers.mockResolvedValue({ data: { users: [{ id: 'user-1', email: 'a@b.com' }] }, error: null })
     const res = await invoke({
       type: 'reset-password',
       email: 'a@b.com',
@@ -264,7 +262,6 @@ describe('send-reminder auth guards', () => {
     expect(res.statusCode).toBe(200)
     expect(res.payload.success).toBe(true)
     expect(h.updateUserById).toHaveBeenCalledWith('user-1', { password: 'newpass1' })
-    expect(h.listUsers).not.toHaveBeenCalled()
   })
 
   it('increments attempts on a wrong code during reset-password without updating', async () => {

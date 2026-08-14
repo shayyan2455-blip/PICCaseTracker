@@ -290,18 +290,16 @@ async function handleResetPassword(email, otp, newPassword) {
     return { error: 'Invalid or expired OTP' }
   }
 
-  // Find user by email via the profiles mirror (direct indexed query, not
-  // paginated admin.listUsers)
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('id, email')
-    .eq('email', (email || '').trim().toLowerCase())
-    .maybeSingle()
-  if (!profile) return { error: 'User not found' }
+  // Find user by email via auth admin API
+  const { data: userData } = await supabaseAdmin.auth.admin.listUsers({
+    filter: `email=${(email || '').trim().toLowerCase()}`,
+  })
+  const user = userData?.users?.[0]
+  if (!user) return { error: 'User not found' }
 
   // Update password via admin API
   const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(
-    profile.id,
+    user.id,
     { password: newPassword }
   )
 
