@@ -18,7 +18,7 @@ const steps = [
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8">
+    <section id="how-it-works" className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8" style={{ backgroundColor: 'var(--second-bg-color)' }}>
       <div className="mb-16 text-center">
         <h2 className="text-3xl font-bold sm:text-4xl">
           Three steps to{' '}
