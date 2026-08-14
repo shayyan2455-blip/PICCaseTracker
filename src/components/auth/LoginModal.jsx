@@ -9,6 +9,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
   const [showPassword, setShowPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [success, setSuccess] = useState('')
   const [step, setStep] = useState('login')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -44,6 +45,10 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
     setOtp('')
     setStep('login')
     setError('')
+    setSuccess('')
+    setShowPassword(false)
+    setShowNewPassword(false)
+    setShowConfirmPassword(false)
     if (timerRef.current) clearInterval(timerRef.current)
   }
 
@@ -115,8 +120,11 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Failed to reset password'); setLoading(false); return }
-      resetForm()
-      onClose()
+      setPassword('')
+      setConfirmPassword('')
+      setOtp('')
+      setStep('login')
+      setSuccess('Password reset successful. You can now log in with your new password.')
     } catch (e) {
       setError('Failed to connect to server. Please try again.')
     }
@@ -179,6 +187,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
         <p className="mb-6 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>{subtitle}</p>
 
         {error && <div className="mb-4 rounded-lg bg-red-500/10 px-4 py-3 text-sm text-red-500">{error}</div>}
+        {success && <div className="mb-4 rounded-lg bg-green-500/10 px-4 py-3 text-sm text-green-500">{success}</div>}
 
         {step === 'login' && (
           <>
