@@ -1,4 +1,4 @@
-# PIC Case Tracker — Remaining Phases
+# DocketDesk — Remaining Phases
 
 ## Phase 5 — File Uploads & Real Storage
 

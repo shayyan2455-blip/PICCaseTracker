@@ -88,14 +88,14 @@ async function handleInviteUser({ email, role, orgId, inviterUserId }) {
 
     const transporter = getTransporter()
     await transporter.sendMail({
-      from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
-      to: normalizedEmail,
-      subject: 'You were added to a PIC Case Tracker organization',
+      from: `"DocketDesk" <${process.env.GMAIL_SMTP_USER}>`,
+      to: email,
+      subject: 'You were added to a DocketDesk organization',
       html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-        <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+        <h2 style="margin:0 0 8px">DocketDesk</h2>
         <p style="color:#666;margin:0 0 24px">You have been added to an organization as <strong>${role}</strong>. Log in with your existing account to access it.</p>
         <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
-        <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+        <p style="color:#999;font-size:12px">DocketDesk</p>
       </div>`,
     })
 
@@ -121,17 +121,17 @@ async function handleInviteUser({ email, role, orgId, inviterUserId }) {
 
   const transporter = getTransporter()
   await transporter.sendMail({
-    from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
-    to: normalizedEmail,
-    subject: 'Your PIC Case Tracker account',
+    from: `"DocketDesk" <${process.env.GMAIL_SMTP_USER}>`,
+    to: email,
+    subject: 'Your DocketDesk account',
     html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-      <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+      <h2 style="margin:0 0 8px">DocketDesk</h2>
       <p style="color:#666;margin:0 0 4px">An account has been created for you as <strong>${role}</strong>. Log in with:</p>
       <p style="margin:8px 0 4px"><strong>Email:</strong> ${normalizedEmail}</p>
       <p style="margin:0 0 8px"><strong>Temporary password:</strong> <span style="font-size:18px;font-weight:700;color:#ea580c">${tempPassword}</span></p>
       <p style="color:#666;margin:0 0 24px">You will be asked to set a new password after your first login.</p>
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
-      <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+      <p style="color:#999;font-size:12px">DocketDesk</p>
     </div>`,
   })
 
@@ -141,14 +141,14 @@ async function handleInviteUser({ email, role, orgId, inviterUserId }) {
 async function sendTestEmail(to) {
   const transporter = getTransporter()
   await transporter.sendMail({
-    from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
-    to,
-    subject: 'PIC Case Tracker — Test Email',
+    from: `"DocketDesk" <${process.env.GMAIL_SMTP_USER}>`,
+    to: email,
+    subject: 'DocketDesk — Test Email',
     html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-      <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+      <h2 style="margin:0 0 8px">DocketDesk</h2>
       <p style="color:#666;margin:0 0 24px">This is a test email to confirm your reminder delivery is working.</p>
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
-      <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+      <p style="color:#999;font-size:12px">DocketDesk</p>
     </div>`,
   })
 }
@@ -202,16 +202,16 @@ async function handleSendOtp(email) {
     const transporter = getTransporter()
     try {
       await transporter.sendMail({
-        from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
+        from: `"DocketDesk" <${process.env.GMAIL_SMTP_USER}>`,
         to: normalizedEmail,
-        subject: 'PIC Case Tracker — Password Reset OTP',
+        subject: 'DocketDesk — Password Reset OTP',
         html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-          <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+          <h2 style="margin:0 0 8px">DocketDesk</h2>
           <p style="color:#666;margin:0 0 4px">Your OTP for password reset is:</p>
           <div style="font-size:32px;font-weight:700;letter-spacing:8px;text-align:center;margin:24px 0;color:#ea580c">${otp}</div>
           <p style="color:#999;font-size:13px">This OTP expires in 2 minutes. If you did not request this, please ignore this email.</p>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
-          <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+          <p style="color:#999;font-size:12px">DocketDesk</p>
         </div>`,
       })
     } catch {
@@ -415,11 +415,11 @@ async function sendDailyReminders() {
     })
 
     const html = `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
-      <h2 style="margin:0 0 8px">PIC Case Tracker</h2>
+      <h2 style="margin:0 0 8px">DocketDesk</h2>
       <p style="color:#666;margin:0 0 4px">Your deadlines for ${todayDisplay}</p>
       <table style="width:100%;border-collapse:collapse;margin:24px 0">${rows}</table>
       <hr style="border:none;border-top:1px solid #eee;margin:24px 0" />
-      <p style="color:#999;font-size:12px">PIC Case Tracker</p>
+      <p style="color:#999;font-size:12px">DocketDesk</p>
     </div>`
 
     const subject = `${group.hearings.length} deadline${group.hearings.length > 1 ? 's' : ''} need${group.hearings.length > 1 ? '' : 's'} attention`
@@ -427,9 +427,9 @@ async function sendDailyReminders() {
     for (const email of emails) {
       try {
         await transporter.sendMail({
-          from: `"PIC Case Tracker" <${process.env.GMAIL_SMTP_USER}>`,
+          from: `"DocketDesk" <${process.env.GMAIL_SMTP_USER}>`,
           to: email,
-          subject: `PIC Case Tracker — ${subject}`,
+          subject: `DocketDesk — ${subject}`,
           html,
         })
         sentCount++

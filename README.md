@@ -1,4 +1,4 @@
-# PIC Case Tracker
+# DocketDesk
 
 Multi-lawyer web application for tracking RTI (Right to Information) appeals before the Pakistan Information Commission (PIC). Manage cases, upload documents with OCR, track deadlines, send email reminders, and collaborate with your firm.
 

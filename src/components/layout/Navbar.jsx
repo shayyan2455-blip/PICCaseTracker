@@ -15,7 +15,7 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
             <path d="M23 22h2m-1-1v2" stroke="var(--main-color)" strokeWidth="1.5" strokeLinecap="round"/>
           </svg>
           <span className="text-xl font-bold">
-            PIC<span className="gradient-text">Tracker</span>
+            Docket<span className="gradient-text">Desk</span>
           </span>
         </a>
 

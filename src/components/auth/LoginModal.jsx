@@ -158,7 +158,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToSignup }) {
     : step === 'forgot_otp' ? 'Enter OTP'
     : 'Reset Password'
 
-  const subtitle = step === 'login' ? 'Log in to your PIC Tracker account'
+  const subtitle = step === 'login' ? 'Log in to your DocketDesk account'
     : step === 'forgot_email' ? 'Enter your email to receive a reset code'
     : step === 'forgot_otp' ? `An 8-digit code was sent to ${email}`
     : 'Choose a new password'

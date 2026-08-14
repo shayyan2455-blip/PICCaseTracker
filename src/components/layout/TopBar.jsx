@@ -28,7 +28,7 @@ export default function TopBar() {
           <path d="M23 22h2m-1-1v2" stroke="var(--main-color)" strokeWidth="1.5" strokeLinecap="round"/>
         </svg>
         <span className="text-lg font-bold">
-          PIC<span style={{ color: 'var(--main-color)' }}>Tracker</span>
+          Docket<span style={{ color: 'var(--main-color)' }}>Desk</span>
         </span>
       </a>
 
