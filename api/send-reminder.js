@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer'
+import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseAdmin = createClient(
@@ -30,7 +31,7 @@ function getTransporter() {
 }
 
 function generateOtp() {
-  return String(Math.floor(10000000 + Math.random() * 90000000))
+  return String(crypto.randomInt(10000000, 100000000))
 }
 
 function generateTempPassword() {
@@ -38,10 +39,10 @@ function generateTempPassword() {
   const lower = 'abcdefghjkmnpqrstuvwxyz'
   const digits = '23456789'
   const chars = upper + lower + digits
-  let pw = upper[Math.floor(Math.random() * upper.length)]
-  pw += digits[Math.floor(Math.random() * digits.length)]
-  for (let i = 0; i < 8; i++) pw += chars[Math.floor(Math.random() * chars.length)]
-  return pw.split('').sort(() => Math.random() - 0.5).join('')
+  let pw = upper[crypto.randomInt(upper.length)]
+  pw += digits[crypto.randomInt(digits.length)]
+  for (let i = 0; i < 8; i++) pw += chars[crypto.randomInt(chars.length)]
+  return pw.split('').sort(() => crypto.randomInt(3) - 1).join('')
 }
 
 async function handleInviteUser({ email, role, orgId, inviterUserId }) {
@@ -108,10 +109,14 @@ async function handleInviteUser({ email, role, orgId, inviterUserId }) {
     email: normalizedEmail,
     password: tempPassword,
     email_confirm: true,
-    user_metadata: { must_change_password: true },
   })
 
   if (cErr) return { error: cErr.message }
+
+  // Set must_change_password in the server-controlled user_flags table
+  await supabaseAdmin
+    .from('user_flags')
+    .upsert({ user_id: created.user.id, must_change_password: true })
 
   const { error: mErr2 } = await supabaseAdmin
     .from('members')
@@ -142,7 +147,7 @@ async function sendTestEmail(to) {
   const transporter = getTransporter()
   await transporter.sendMail({
     from: `"DocketDesk" <${process.env.GMAIL_SMTP_USER}>`,
-    to: email,
+    to,
     subject: 'DocketDesk — Test Email',
     html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
       <h2 style="margin:0 0 8px">DocketDesk</h2>
@@ -460,7 +465,7 @@ export default async function handler(req, res) {
   try {
     const { to, type } = req.body || {}
 
-    if (req.headers['x-vercel-cron']) {
+    if (req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`) {
       const result = await sendDailyReminders()
       return res.status(200).json({
         ...result,
@@ -479,10 +484,9 @@ export default async function handler(req, res) {
     }
 
     if (type === 'test') {
-      if (!to) return res.status(400).json({ error: 'Missing recipient email' })
       const authUser = await getAuthUser(req)
       if (!authUser) return res.status(401).json({ error: 'Unauthorized' })
-      await sendTestEmail(to)
+      await sendTestEmail(authUser.email)
       return res.status(200).json({ success: true, elapsed_ms: Date.now() - start })
     }
 

@@ -44,6 +44,7 @@ function makeChain(overrides = {}) {
     limit: () => chain,
     maybeSingle: overrides.maybeSingle || (async () => ({ data: null, error: null })),
     insert: overrides.insert || (async () => ({ data: null, error: null })),
+    upsert: overrides.upsert || (async () => ({ data: null, error: null })),
     update: () => chain,
     delete: () => chain,
   })
@@ -127,6 +128,9 @@ describe('send-reminder auth guards', () => {
     })
     h.fromChains.profiles = makeChain({
       maybeSingle: async () => ({ data: null, error: null }),
+    })
+    h.fromChains.user_flags = makeChain({
+      upsert: async () => ({ data: null, error: null }),
     })
     h.createUser.mockResolvedValue({ data: { user: { id: 'new-user' } }, error: null })
 
@@ -294,12 +298,13 @@ describe('send-reminder auth guards', () => {
   })
 
   it('returns 401 for a test email without a token', async () => {
-    const res = await invoke({ type: 'test', to: 'someone@example.com' })
+    const res = await invoke({ type: 'test' })
     expect(res.statusCode).toBe(401)
   })
 
-  it('does not require a token when the Vercel cron header is present', async () => {
-    const res = await invoke({}, { 'x-vercel-cron': '1' })
+  it('does not require a token when the CRON_SECRET Bearer token is present', async () => {
+    process.env.CRON_SECRET = 'test-cron-secret'
+    const res = await invoke({}, { authorization: 'Bearer test-cron-secret' })
     expect(res.statusCode).toBe(200)
     expect(res.payload.sent).toBe(0)
     expect(h.getUserById).not.toHaveBeenCalled()

@@ -21,7 +21,7 @@ export default function ChangePasswordModal() {
       const { error: pErr } = await supabase.auth.updateUser({ password })
       if (pErr) throw new Error(pErr.message)
 
-      await supabase.auth.updateUser({ data: { must_change_password: false } })
+      await supabase.rpc('clear_must_change_password')
     } catch (err) {
       console.error('Password change error:', err)
       setError('Failed to update password. Please try again.')

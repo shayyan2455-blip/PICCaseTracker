@@ -20,9 +20,9 @@ import { CasesProvider } from './lib/CasesContext'
 import { DocumentsProvider } from './lib/DocumentsContext'
 import { HearingsProvider } from './lib/HearingsContext'
 
-function ProtectedRoute({ session, children }) {
+function ProtectedRoute({ blocked, children }) {
   if (!session) return <Navigate to="/" replace />
-  if (session.user?.user_metadata?.blocked === true) return <Navigate to="/blocked" replace />
+  if (blocked) return <Navigate to="/blocked" replace />
   return children
 }
 
@@ -32,19 +32,37 @@ export default function App() {
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
   const [mustChangePassword, setMustChangePassword] = useState(false)
+  const [blocked, setBlocked] = useState(false)
 
   useEffect(() => {
     initTheme()
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function loadSession() {
+      const { data: { session } } = await supabase.auth.getSession()
       setSession(session)
-      setMustChangePassword(session?.user?.user_metadata?.must_change_password === true)
-      setLoading(false)
-    })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        const { data: flags } = await supabase.rpc('get_my_flags')
+        setBlocked(flags?.blocked === true)
+        setMustChangePassword(flags?.must_change_password === true)
+      }
+
+      setLoading(false)
+    }
+
+    loadSession()
+
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session)
-      setMustChangePassword(session?.user?.user_metadata?.must_change_password === true)
+
+      if (session) {
+        const { data: flags } = await supabase.rpc('get_my_flags')
+        setBlocked(flags?.blocked === true)
+        setMustChangePassword(flags?.must_change_password === true)
+      } else {
+        setBlocked(false)
+        setMustChangePassword(false)
+      }
     })
 
     return () => listener?.subscription.unsubscribe()
@@ -112,7 +130,7 @@ export default function App() {
           <Route
             path="/app"
             element={
-              <ProtectedRoute session={session}>
+              <ProtectedRoute blocked={blocked}>
                 <CasesProvider>
                   <DocumentsProvider>
                     <HearingsProvider>
