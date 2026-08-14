@@ -174,16 +174,10 @@ async function handleSendOtp(email) {
     return { error: 'Too many reset attempts, please wait before trying again' }
   }
 
-  // Check if the account exists via the profiles mirror (auth.users stays the
-  // source of truth; profiles is kept in sync by trigger, see migration 024).
-  // If it doesn't exist, skip sending but still return the same generic
-  // success-shaped response — the endpoint must not reveal whether an email
-  // has an account.
-  const { data: profile } = await supabaseAdmin
-    .from('profiles')
-    .select('id, email')
-    .eq('email', normalizedEmail)
-    .maybeSingle()
+  // Check if the account exists via the auth admin API (source of truth).
+  // If it doesn't exist, return an error.
+  const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.getUserByEmail(normalizedEmail)
+  const profile = userData?.user ? { id: userData.user.id, email: userData.user.email } : null
 
   if (profile) {
     // Invalidate any previous unused OTPs for this email
