@@ -20,7 +20,7 @@ import { CasesProvider } from './lib/CasesContext'
 import { DocumentsProvider } from './lib/DocumentsContext'
 import { HearingsProvider } from './lib/HearingsContext'
 
-function ProtectedRoute({ blocked, children }) {
+function ProtectedRoute({ session, blocked, children }) {
   if (!session) return <Navigate to="/" replace />
   if (blocked) return <Navigate to="/blocked" replace />
   return children
@@ -130,7 +130,7 @@ export default function App() {
           <Route
             path="/app"
             element={
-              <ProtectedRoute blocked={blocked}>
+              <ProtectedRoute session={session} blocked={blocked}>
                 <CasesProvider>
                   <DocumentsProvider>
                     <HearingsProvider>
