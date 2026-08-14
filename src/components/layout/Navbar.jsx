@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ThemeToggle from '../ui/ThemeToggle'
+import BrandLogo from '../ui/BrandLogo'
 
 export default function Navbar({ onOpenLogin, onOpenSignup }) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -8,12 +9,7 @@ export default function Navbar({ onOpenLogin, onOpenSignup }) {
     <nav className="fixed top-0 left-0 right-0 z-40 border-b" style={{ backgroundColor: 'var(--bg-color)', borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}>
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <a href="/" className="flex items-center gap-2">
-          <svg className="h-8 w-8" viewBox="0 0 32 32" fill="none">
-            <rect width="32" height="32" rx="6" fill="var(--main-color)"/>
-            <path d="M8 10h16v2H8zm0 5h16v2H8zm0 5h10v2H8z" fill="white" opacity="0.9"/>
-            <circle cx="24" cy="22" r="4" fill="white"/>
-            <path d="M23 22h2m-1-1v2" stroke="var(--main-color)" strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
+          <BrandLogo className="h-8 w-8" />
           <span className="text-xl font-bold">
             Docket<span className="gradient-text">Desk</span>
           </span>

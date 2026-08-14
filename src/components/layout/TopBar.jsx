@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import ThemeToggle from '../ui/ThemeToggle'
+import BrandLogo from '../ui/BrandLogo'
 import { supabase } from '../../lib/supabaseClient'
 import { clearOrgId } from '../../lib/org'
 
@@ -21,12 +22,7 @@ export default function TopBar() {
       }}
     >
       <a href="/app" className="flex items-center gap-2">
-        <svg className="h-7 w-7" viewBox="0 0 32 32" fill="none">
-          <rect width="32" height="32" rx="6" fill="var(--main-color)"/>
-          <path d="M8 10h16v2H8zm0 5h16v2H8zm0 5h10v2H8z" fill="white" opacity="0.9"/>
-          <circle cx="24" cy="22" r="4" fill="white"/>
-          <path d="M23 22h2m-1-1v2" stroke="var(--main-color)" strokeWidth="1.5" strokeLinecap="round"/>
-        </svg>
+        <BrandLogo className="h-7 w-7" />
         <span className="text-lg font-bold">
           Docket<span style={{ color: 'var(--main-color)' }}>Desk</span>
         </span>
