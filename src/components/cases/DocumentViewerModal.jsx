@@ -210,6 +210,13 @@ export default function DocumentViewerModal({ isOpen, onClose, doc }) {
             className="max-h-full w-full object-contain"
             style={{ backgroundColor: '#ffffff' }}
           />
+        ) : isPdf ? (
+          <iframe
+            src={`https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`}
+            className="w-full flex-1"
+            style={{ border: 'none', backgroundColor: '#ffffff' }}
+            title="Document viewer"
+          />
         ) : (
           <iframe
             src={signedUrl}
