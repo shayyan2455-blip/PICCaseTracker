@@ -6,7 +6,6 @@ const h = vi.hoisted(() => ({
   createUser: vi.fn(),
   getUserById: vi.fn(),
   updateUserById: vi.fn(),
-  getUserByEmail: vi.fn(),
   fromChains: {},
   defaultChain: null,
   sendMail: vi.fn(),
@@ -21,7 +20,6 @@ vi.mock('@supabase/supabase-js', () => ({
         createUser: h.createUser,
         getUserById: h.getUserById,
         updateUserById: h.updateUserById,
-        getUserByEmail: h.getUserByEmail,
       },
     },
     from: (table) => h.fromChains[table] || h.defaultChain,
@@ -171,7 +169,7 @@ describe('send-reminder auth guards', () => {
   })
 
   it('sends an OTP for an existing account found via auth admin', async () => {
-    h.getUserByEmail.mockResolvedValue({ data: { user: { id: 'user-1', email: 'a@b.com' } }, error: null })
+    h.listUsers.mockResolvedValue({ data: { users: [{ id: 'user-1', email: 'a@b.com' }] }, error: null })
     const res = await invoke({ type: 'send-otp', email: 'A@B.COM' })
     expect(res.statusCode).toBe(200)
     expect(res.payload.success).toBe(true)
@@ -179,7 +177,7 @@ describe('send-reminder auth guards', () => {
   })
 
   it('returns an error when send-otp has no matching auth user', async () => {
-    h.getUserByEmail.mockResolvedValue({ data: { user: null }, error: null })
+    h.listUsers.mockResolvedValue({ data: { users: [] }, error: null })
     const res = await invoke({ type: 'send-otp', email: 'nobody@b.com' })
     expect(res.statusCode).toBe(400)
     expect(res.payload.error).toBe('No account found with this email address')
@@ -200,7 +198,7 @@ describe('send-reminder auth guards', () => {
     h.fromChains.password_resets = makeChain({
       resolveTo: { data: [{ id: 'r1' }, { id: 'r2' }], error: null },
     })
-    h.getUserByEmail.mockResolvedValue({ data: { user: { id: 'user-1', email: 'a@b.com' } }, error: null })
+    h.listUsers.mockResolvedValue({ data: { users: [{ id: 'user-1', email: 'a@b.com' }] }, error: null })
     const res = await invoke({ type: 'send-otp', email: 'a@b.com' })
     expect(res.statusCode).toBe(200)
     expect(res.payload.success).toBe(true)

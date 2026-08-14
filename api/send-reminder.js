@@ -176,8 +176,10 @@ async function handleSendOtp(email) {
 
   // Check if the account exists via the auth admin API (source of truth).
   // If it doesn't exist, return an error.
-  const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.getUserByEmail(normalizedEmail)
-  const profile = userData?.user ? { id: userData.user.id, email: userData.user.email } : null
+  const { data: userData } = await supabaseAdmin.auth.admin.listUsers({
+    filter: `email=${normalizedEmail}`,
+  })
+  const profile = userData?.users?.[0] ? { id: userData.users[0].id, email: userData.users[0].email } : null
 
   if (profile) {
     // Invalidate any previous unused OTPs for this email
