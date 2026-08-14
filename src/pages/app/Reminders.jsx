@@ -101,14 +101,14 @@ export default function Reminders() {
 
   return (
     <div className="mx-auto max-w-6xl pt-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold sm:text-3xl">Reminders</h1>
           <p className="mt-1 text-sm" style={{ color: 'color-mix(in srgb, var(--text-color) 60%, transparent)' }}>
             Upcoming deadlines and sent reminder history
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
           {sendResult && (
             <span className="self-center text-xs font-medium" style={{ color: sendResult.startsWith('Sent') ? 'var(--main-color)' : '#ef4444' }}>
               {sendResult}
@@ -117,11 +117,11 @@ export default function Reminders() {
           <button
             onClick={handleSendReminders}
             disabled={sendingReminders}
-            className="btn-ghost text-sm px-3 py-2"
+            className="btn-ghost px-3 py-2 text-xs font-medium sm:text-sm"
           >
             {sendingReminders ? 'Sending...' : 'Send Reminders Now'}
           </button>
-          <Link to="/app/settings" className="btn-primary text-sm px-4 py-2">
+          <Link to="/app/settings" className="btn-primary px-3 py-2 text-xs font-medium sm:text-sm sm:px-4">
             Settings
           </Link>
         </div>
