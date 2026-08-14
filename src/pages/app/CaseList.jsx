@@ -112,11 +112,19 @@ export default function CaseList() {
       </div>
 
       {/* Mobile: native status dropdown */}
-      <div className="mt-3 sm:hidden">
+      <div className="mt-3 flex items-center gap-2 sm:hidden">
+        <label
+          htmlFor="case-status-filter"
+          className="shrink-0 text-sm font-medium"
+          style={{ color: 'color-mix(in srgb, var(--text-color) 70%, transparent)' }}
+        >
+          Filter:
+        </label>
         <select
+          id="case-status-filter"
           value={statusFilter}
           onChange={(e) => handleStatusFilter(e.target.value)}
-          className="w-full rounded-lg border py-2.5 pl-4 pr-4 text-sm outline-none transition-colors"
+          className="w-full min-w-0 flex-1 rounded-lg border py-2.5 pl-4 pr-4 text-sm outline-none transition-colors"
           style={{
             backgroundColor: 'var(--second-bg-color)',
             borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
