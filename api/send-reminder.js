@@ -222,6 +222,8 @@ async function handleSendOtp(email) {
     } catch {
       return { error: 'Failed to send OTP email. Check SMTP configuration.' }
     }
+  } else {
+    return { error: 'No account found with this email address' }
   }
 
   return { success: true }
