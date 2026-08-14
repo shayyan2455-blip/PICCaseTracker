@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useCasesContext } from '../../lib/CasesContext'
 import CaseStatusBadge from '../../components/cases/CaseStatusBadge'
@@ -7,11 +7,21 @@ import { TableSkeleton } from '../../components/ui/Skeleton'
 
 const PAGE_SIZE = 20
 
+function formatStatus(s) {
+  return s === 'all' ? 'All' : s.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+}
+
 export default function CaseList() {
   const { cases, loading } = useCasesContext()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [page, setPage] = useState(0)
+  const [colorScheme, setColorScheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
+    }
+    return 'dark'
+  })
 
   const filtered = useMemo(() => {
     return cases.filter((c) => {
@@ -41,6 +51,16 @@ export default function CaseList() {
     setStatusFilter(val)
     setPage(0)
   }
+
+  useEffect(() => {
+    const handler = () => {
+      setColorScheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark')
+    }
+    window.addEventListener('storage', handler)
+    const observer = new MutationObserver(handler)
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => { window.removeEventListener('storage', handler); observer.disconnect() }
+  }, [])
 
   if (loading) {
     return (
@@ -91,7 +111,29 @@ export default function CaseList() {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
+      {/* Mobile: native status dropdown */}
+      <div className="mt-3 sm:hidden">
+        <select
+          value={statusFilter}
+          onChange={(e) => handleStatusFilter(e.target.value)}
+          className="w-full rounded-lg border py-2.5 pl-4 pr-4 text-sm outline-none transition-colors"
+          style={{
+            backgroundColor: 'var(--second-bg-color)',
+            borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+            color: 'var(--text-color)',
+            colorScheme,
+          }}
+        >
+          {statuses.map((s) => (
+            <option key={s} value={s}>
+              {formatStatus(s)}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Desktop: status pill row */}
+      <div className="mt-3 hidden flex-wrap gap-2 sm:flex">
         {statuses.map((s) => (
           <button
             key={s}
@@ -102,7 +144,7 @@ export default function CaseList() {
               color: statusFilter === s ? 'white' : 'color-mix(in srgb, var(--text-color) 60%, transparent)',
             }}
           >
-            {s === 'all' ? 'All' : s.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+            {formatStatus(s)}
           </button>
         ))}
       </div>
