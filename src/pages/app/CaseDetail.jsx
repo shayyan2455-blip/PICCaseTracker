@@ -248,8 +248,28 @@ export default function CaseDetail() {
         </div>
       </div>
 
+      <div className="mt-4 sm:hidden">
+        <select
+          value={c.status}
+          onChange={(e) => handleStatusChange(e.target.value)}
+          className="w-full rounded-lg border py-2.5 pl-4 pr-4 text-sm outline-none transition-colors"
+          style={{
+            backgroundColor: 'var(--second-bg-color)',
+            borderColor: 'color-mix(in srgb, var(--text-color) 15%, transparent)',
+            color: 'var(--text-color)',
+            colorScheme,
+          }}
+        >
+          {statusOptions.map((s) => (
+            <option key={s} value={s}>
+              {s.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div
-        className="mt-4 flex flex-wrap gap-x-1 border-b"
+        className="mt-4 hidden gap-x-1 border-b sm:flex"
         style={{ borderColor: 'color-mix(in srgb, var(--text-color) 10%, transparent)' }}
       >
         {statusOptions.map((s) => {
