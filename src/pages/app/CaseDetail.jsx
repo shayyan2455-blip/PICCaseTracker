@@ -249,7 +249,15 @@ export default function CaseDetail() {
       </div>
 
       <div className="mt-4 sm:hidden">
+        <label
+          htmlFor="case-status-select"
+          className="mb-1 block text-[11px] font-medium uppercase tracking-wide"
+          style={{ color: 'color-mix(in srgb, var(--text-color) 50%, transparent)' }}
+        >
+          Current Status
+        </label>
         <select
+          id="case-status-select"
           value={c.status}
           onChange={(e) => handleStatusChange(e.target.value)}
           className="w-full rounded-lg border py-2.5 pl-4 pr-4 text-sm outline-none transition-colors"
