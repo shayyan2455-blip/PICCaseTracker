@@ -174,12 +174,13 @@ async function handleSendOtp(email) {
     return { error: 'Too many reset attempts, please wait before trying again' }
   }
 
-  // Check if the account exists via the auth admin API (source of truth).
-  // If it doesn't exist, return an error.
-  const { data: userData } = await supabaseAdmin.auth.admin.listUsers({
-    filter: `email=${normalizedEmail}`,
-  })
-  const profile = userData?.users?.[0] ? { id: userData.users[0].id, email: userData.users[0].email } : null
+  // Check if the account exists via profiles (mirrors auth.users, kept in
+  // sync by trigger — reliable lookup, avoids paginated admin.listUsers).
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email')
+    .eq('email', normalizedEmail)
+    .maybeSingle()
 
   if (profile) {
     // Invalidate any previous unused OTPs for this email
@@ -290,11 +291,13 @@ async function handleResetPassword(email, otp, newPassword) {
     return { error: 'Invalid or expired OTP' }
   }
 
-  // Find user by email via auth admin API
-  const { data: userData } = await supabaseAdmin.auth.admin.listUsers({
-    filter: `email=${(email || '').trim().toLowerCase()}`,
-  })
-  const user = userData?.users?.[0]
+  // Find user by email via profiles (mirrors auth.users, kept in sync by
+  // trigger — reliable lookup, avoids paginated admin.listUsers).
+  const { data: user } = await supabaseAdmin
+    .from('profiles')
+    .select('id, email')
+    .eq('email', (email || '').trim().toLowerCase())
+    .maybeSingle()
   if (!user) return { error: 'User not found' }
 
   // Update password via admin API
