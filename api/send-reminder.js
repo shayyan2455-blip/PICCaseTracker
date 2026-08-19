@@ -176,11 +176,15 @@ async function handleSendOtp(email) {
 
   // Check if the account exists via profiles (mirrors auth.users, kept in
   // sync by trigger — reliable lookup, avoids paginated admin.listUsers).
-  const { data: profile } = await supabaseAdmin
+  const { data: profile, error: profileErr } = await supabaseAdmin
     .from('profiles')
     .select('id, email')
-    .eq('email', normalizedEmail)
+    .ilike('email', normalizedEmail)
     .maybeSingle()
+
+  if (profileErr) {
+    return { error: 'Account lookup failed: ' + profileErr.message }
+  }
 
   if (profile) {
     // Invalidate any previous unused OTPs for this email
@@ -293,11 +297,12 @@ async function handleResetPassword(email, otp, newPassword) {
 
   // Find user by email via profiles (mirrors auth.users, kept in sync by
   // trigger — reliable lookup, avoids paginated admin.listUsers).
-  const { data: user } = await supabaseAdmin
+  const { data: user, error: userErr } = await supabaseAdmin
     .from('profiles')
     .select('id, email')
-    .eq('email', (email || '').trim().toLowerCase())
+    .ilike('email', (email || '').trim().toLowerCase())
     .maybeSingle()
+  if (userErr) return { error: 'Account lookup failed: ' + userErr.message }
   if (!user) return { error: 'User not found' }
 
   // Update password via admin API
